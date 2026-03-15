@@ -25,7 +25,9 @@ const MENUS = {
       { key: "tutorial",       label: "Tutorial",           icon: "book"    },
     ],
     "Pengaturan": [
-      { key: "user-mgmt",      label: "Manajemen User",     icon: "settings"},
+      { key: "setting-honor",   label: "Setting Honor Guru",  icon: "star"    },
+      { key: "program",         label: "Program Bimbel",      icon: "book"    },
+      { key: "user-mgmt",       label: "Manajemen User",      icon: "settings"},
     ],
   },
 

@@ -10,6 +10,7 @@ import {
   TEACHERS_DATA,
   ABSENSI_DATA,
   HONOR_DATA,
+  HONOR_SETTING,
   BULAN_LIST,
   TAHUN_LIST,
 } from "../../data/index.js";
@@ -36,15 +37,14 @@ export function GuruDashboard({ onMenu }) {
   const absensiHariIni = ABSENSI_DATA.filter(a => a.guru_id === MY_GURU_ID);
   const totalHadir     = absensiHariIni.filter(a => a.status === "Hadir").length;
   const myHonor        = HONOR_DATA.find(h => h.guru_id === MY_GURU_ID);
-  const totalSiswa     = myHonor?.rincian.reduce((a, b) => a + b.jumlah_siswa, 0) || 0;
-  const totalHonor     = totalSiswa * (MY_GURU?.honor_per_siswa || 0);
+  const totalHonor     = myHonor?.mengajar?.reduce((a,b) => a + b.jumlah_siswa * b.honor_per_siswa, 0) || 0;
 
   return (
     <div className="fade-in">
       {/* Stats */}
       <div className="stats-grid">
         <StatCard icon="👨‍🎓" label="Total Siswa Diajar" value={MY_SISWA.length}         bgColor="#dbeafe" textColor="#2563eb" />
-        <StatCard icon="📋" label="Program Diajar"      value={MY_GURU?.program.length || 0} bgColor="#dcfce7" textColor="#16a34a" />
+        <StatCard icon="📋" label="Program Diajar"      value={HONOR_SETTING.filter(s => s.guru_id === MY_GURU_ID).length} bgColor="#dcfce7" textColor="#16a34a" />
         <StatCard icon="✅" label="Hadir Bulan Ini"     value={totalHadir}                bgColor="#fef9c3" textColor="#d97706" />
         <StatCard icon="💰" label="Estimasi Honor"      value={"Rp " + totalHonor.toLocaleString("id-ID")} bgColor="#f3e8ff" textColor="#7c3aed" />
       </div>
@@ -80,7 +80,8 @@ export function GuruDashboard({ onMenu }) {
         {/* Program & honor */}
         <div className="content-card">
           <h3 style={{ marginBottom: 14 }}>📊 Program yang Diajar</h3>
-          {MY_GURU?.program.map((p, i) => {
+          {HONOR_SETTING.filter(s => s.guru_id === MY_GURU_ID).map((s, i) => {
+            const p = s.program;
             const jml = STUDENTS_DATA.filter(s => s.program === p && s.guru === MY_GURU.nama).length;
             return (
               <div key={i} style={{
@@ -96,9 +97,9 @@ export function GuruDashboard({ onMenu }) {
             );
           })}
           <div style={{ marginTop: 14, background: "#f0fdf4", borderRadius: 10, padding: "12px 14px" }}>
-            <div style={{ fontSize: ".75rem", color: "var(--muted)" }}>Honor per siswa</div>
+            <div style={{ fontSize: ".75rem", color: "var(--muted)" }}>Total Gaji Estimasi</div>
             <div style={{ fontWeight: 700, color: "var(--green)", fontSize: ".95rem" }}>
-              Rp {MY_GURU?.honor_per_siswa.toLocaleString("id-ID")}/siswa
+              Rp {totalHonor.toLocaleString("id-ID")}
             </div>
           </div>
         </div>
@@ -165,15 +166,18 @@ export function DaftarSiswaGuru() {
 // ─────────────────────────────────────────────────────────────
 export function InputAbsensi() {
   const today    = new Date().toISOString().split("T")[0];
-  const [tgl, setTgl]       = useState(today);
+  const [tgl,    setTgl]    = useState(today);
+  const [bulan,  setBulan]  = useState("Maret");
+  const [tahun,  setTahun]  = useState("2026");
   const [search, setSearch] = useState("");
   const [saved,  setSaved]  = useState(false);
-  const [absen, setAbsen]   = useState(
-    MY_SISWA.map(s => ({ siswa_id: s.id, nama: s.nama, program: s.program, hadir: false }))
+  const [absen,  setAbsen]  = useState(
+    MY_SISWA.map(s => ({ siswa_id: s.id, nama: s.nama, program: s.program, status: "Hadir" }))
   );
 
-  const toggle = (id) => setAbsen(absen.map(a => a.siswa_id === id ? { ...a, hadir: !a.hadir } : a));
-  const checkAll = () => setAbsen(absen.map(a => ({ ...a, hadir: true })));
+  const setStatus = (id, status) => setAbsen(absen.map(a => a.siswa_id === id ? { ...a, status } : a));
+  const checkAll  = () => setAbsen(absen.map(a => ({ ...a, status: "Hadir" })));
+  const clearAll  = () => setAbsen(absen.map(a => ({ ...a, status: "Alpha" })));
 
   const filtered = absen.filter(a =>
     a.nama.toLowerCase().includes(search.toLowerCase()) ||
@@ -185,36 +189,72 @@ export function InputAbsensi() {
     setTimeout(() => setSaved(false), 3000);
   };
 
-  const totalHadir = absen.filter(a => a.hadir).length;
+  const totalHadir = absen.filter(a => a.status === "Hadir").length;
+  const totalIzin  = absen.filter(a => a.status === "Izin").length;
+  const totalSakit = absen.filter(a => a.status === "Sakit").length;
+  const totalAlpha = absen.filter(a => a.status === "Alpha").length;
+
+  const STATUS_OPTIONS = ["Hadir", "Izin", "Sakit", "Alpha"];
+  const STATUS_COLORS  = {
+    Hadir: { bg: "#dcfce7", color: "#16a34a" },
+    Izin:  { bg: "#dbeafe", color: "#2563eb" },
+    Sakit: { bg: "#fef9c3", color: "#b45309" },
+    Alpha: { bg: "#fee2e2", color: "#dc2626" },
+  };
 
   return (
     <div className="fade-in">
-      {/* Filter tanggal */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
+      {/* Filter — Tanggal + Bulan + Tahun */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label">Tanggal</label>
           <input className="form-input" type="date" value={tgl}
-            onChange={e => setTgl(e.target.value)} style={{ width: 180 }} />
+            onChange={e => setTgl(e.target.value)} style={{ width: 160 }} />
         </div>
-        <div style={{ fontSize: ".85rem", color: "var(--muted)", marginTop: 20 }}>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label">Bulan</label>
+          <select className="form-input" style={{ width: 150 }} value={bulan}
+            onChange={e => setBulan(e.target.value)}>
+            {BULAN_LIST.map(b => <option key={b}>{b}</option>)}
+          </select>
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label">Tahun</label>
+          <select className="form-input" style={{ width: 100 }} value={tahun}
+            onChange={e => setTahun(e.target.value)}>
+            {TAHUN_LIST.map(t => <option key={t}>{t}</option>)}
+          </select>
+        </div>
+        <div style={{ fontSize: ".82rem", color: "var(--muted)", paddingBottom: 2 }}>
           📅 {fmtTgl(tgl)}
         </div>
       </div>
 
       {/* Summary */}
       <div className="stats-grid" style={{ marginBottom: 20 }}>
-        <StatCard icon="👨‍🎓" label="Total Siswa"  value={absen.length}       bgColor="#dbeafe" textColor="#2563eb" />
-        <StatCard icon="✅"   label="Hadir"        value={totalHadir}         bgColor="#dcfce7" textColor="#16a34a" />
-        <StatCard icon="❌"   label="Tidak Hadir"  value={absen.length - totalHadir} bgColor="#fee2e2" textColor="#dc2626" />
+        <StatCard icon="👨‍🎓" label="Total Siswa" value={absen.length}  bgColor="#dbeafe" textColor="#2563eb" />
+        <StatCard icon="✅"   label="Hadir"       value={totalHadir}   bgColor="#dcfce7" textColor="#16a34a" />
+        <StatCard icon="📋"   label="Izin"        value={totalIzin}    bgColor="#dbeafe" textColor="#2563eb" />
+        <StatCard icon="🤒"   label="Sakit"       value={totalSakit}   bgColor="#fef9c3" textColor="#b45309" />
+        <StatCard icon="❌"   label="Alpha"       value={totalAlpha}   bgColor="#fee2e2" textColor="#dc2626" />
       </div>
 
       <div className="table-card">
         <div className="table-head">
           <h3>Daftar Hadir — {fmtTglShort(tgl)}</h3>
-          <button onClick={checkAll} className="btn-outline"
-            style={{ padding: "7px 14px", fontSize: ".8rem" }}>
-            ✅ Tandai Semua Hadir
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={checkAll} className="btn-outline"
+              style={{ padding: "7px 12px", fontSize: ".78rem" }}>
+              ✅ Semua Hadir
+            </button>
+            <button onClick={clearAll} style={{
+              padding: "7px 12px", fontSize: ".78rem", borderRadius: 8,
+              border: "1.5px solid #fee2e2", background: "transparent",
+              color: "#dc2626", cursor: "pointer", fontFamily: "inherit", fontWeight: 600,
+            }}>
+              ❌ Reset
+            </button>
+          </div>
         </div>
 
         {/* Search */}
@@ -227,7 +267,7 @@ export function InputAbsensi() {
         <div style={{ overflowX: "auto" }}>
           <table>
             <thead>
-              <tr><th>Nama Siswa</th><th>Program</th><th>Kehadiran</th></tr>
+              <tr><th>Nama Siswa</th><th>Program</th><th>Status Kehadiran</th></tr>
             </thead>
             <tbody>
               {filtered.map(a => (
@@ -235,20 +275,21 @@ export function InputAbsensi() {
                   <td><strong>{a.nama}</strong></td>
                   <td><span className="badge blue">{a.program}</span></td>
                   <td>
-                    <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-                      <input
-                        type="checkbox"
-                        checked={a.hadir}
-                        onChange={() => toggle(a.siswa_id)}
-                        style={{ width: 18, height: 18, cursor: "pointer" }}
-                      />
-                      <span style={{
-                        fontSize: ".82rem", fontWeight: 600,
-                        color: a.hadir ? "#16a34a" : "#dc2626",
-                      }}>
-                        {a.hadir ? "✅ Hadir" : "❌ Tidak Hadir"}
-                      </span>
-                    </label>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {STATUS_OPTIONS.map(s => (
+                        <button key={s} onClick={() => setStatus(a.siswa_id, s)}
+                          style={{
+                            padding: "4px 12px", borderRadius: 100, border: "none",
+                            cursor: "pointer", fontFamily: "inherit",
+                            fontSize: ".75rem", fontWeight: 700, transition: ".15s",
+                            background: a.status === s ? STATUS_COLORS[s].bg : "#f1f5f9",
+                            color: a.status === s ? STATUS_COLORS[s].color : "#94a3b8",
+                            boxShadow: a.status === s ? `0 0 0 2px ${STATUS_COLORS[s].color}40` : "none",
+                          }}>
+                          {s}
+                        </button>
+                      ))}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -278,31 +319,46 @@ export function InputAbsensi() {
 export function RekapAbsensi() {
   const [bulan, setBulan] = useState("Maret");
   const [tahun, setTahun] = useState("2026");
+  const [search, setSearch] = useState("");
 
   // Filter absensi milik guru ini di bulan/tahun yang dipilih
   const data = ABSENSI_DATA.filter(a => {
-    const d = new Date(a.tanggal);
+    const d   = new Date(a.tanggal);
     const bln = d.toLocaleDateString("id-ID", { month: "long" });
     const thn = d.getFullYear().toString();
-    return a.guru_id === MY_GURU_ID && bln === bulan && thn === tahun;
+    return a.guru_id === MY_GURU_ID && bln === bulan && thn === tahun
+        && a.status === "Hadir"; // rekap hanya yang hadir
   });
 
-  const hadir       = data.filter(a => a.status === "Hadir").length;
-  const tidakHadir  = data.filter(a => a.status === "Tidak Hadir").length;
+  // Filter search
+  const filtered = data.filter(a =>
+    a.siswa_nama.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const hadir       = data.length;
+  const tidakHadir  = ABSENSI_DATA.filter(a => {
+    const d   = new Date(a.tanggal);
+    const bln = d.toLocaleDateString("id-ID", { month: "long" });
+    const thn = d.getFullYear().toString();
+    return a.guru_id === MY_GURU_ID && bln === bulan && thn === tahun
+        && a.status === "Tidak Hadir";
+  }).length;
 
   return (
     <div className="fade-in">
       {/* Filter */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label">Bulan</label>
-          <select className="form-input" style={{ width: 160 }} value={bulan} onChange={e => setBulan(e.target.value)}>
+          <select className="form-input" style={{ width: 160 }} value={bulan}
+            onChange={e => setBulan(e.target.value)}>
             {BULAN_LIST.map(b => <option key={b}>{b}</option>)}
           </select>
         </div>
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label">Tahun</label>
-          <select className="form-input" style={{ width: 100 }} value={tahun} onChange={e => setTahun(e.target.value)}>
+          <select className="form-input" style={{ width: 100 }} value={tahun}
+            onChange={e => setTahun(e.target.value)}>
             {TAHUN_LIST.map(t => <option key={t}>{t}</option>)}
           </select>
         </div>
@@ -310,36 +366,45 @@ export function RekapAbsensi() {
 
       {/* Summary */}
       <div className="stats-grid" style={{ marginBottom: 20 }}>
-        <StatCard icon="📋" label="Total Pertemuan" value={data.length}   bgColor="#dbeafe" textColor="#2563eb" />
-        <StatCard icon="✅" label="Hadir"           value={hadir}         bgColor="#dcfce7" textColor="#16a34a" />
-        <StatCard icon="❌" label="Tidak Hadir"     value={tidakHadir}    bgColor="#fee2e2" textColor="#dc2626" />
+        <StatCard icon="✅" label="Total Hadir"      value={hadir}      bgColor="#dcfce7" textColor="#16a34a" />
+        <StatCard icon="❌" label="Total Tidak Hadir" value={tidakHadir} bgColor="#fee2e2" textColor="#dc2626" />
       </div>
 
+      {/* Tabel — hanya Tanggal & Nama Siswa sesuai spesifikasi */}
       <div className="table-card">
         <div className="table-head">
-          <h3>Rekap Absensi — {bulan} {tahun}</h3>
+          <h3>Rekap Kehadiran — {bulan} {tahun}</h3>
         </div>
-        {data.length === 0 ? (
+
+        {/* Search */}
+        <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)" }}>
+          <input className="form-input" style={{ maxWidth: 260 }}
+            placeholder="🔍 Cari nama siswa..."
+            value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+
+        {filtered.length === 0 ? (
           <div style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>
-            Belum ada data absensi di bulan ini.
+            Belum ada data kehadiran di bulan ini.
           </div>
         ) : (
           <div style={{ overflowX: "auto" }}>
             <table>
               <thead>
-                <tr><th>Tanggal</th><th>Nama Siswa</th><th>Program</th><th>Status</th></tr>
+                <tr>
+                  <th>Tanggal</th>
+                  <th>Nama Siswa</th>
+                </tr>
               </thead>
               <tbody>
-                {data.map((a, i) => (
+                {filtered.map((a, i) => (
                   <tr key={i}>
-                    <td style={{ fontSize: ".82rem", color: "var(--muted)" }}>{fmtTglShort(a.tanggal)}</td>
-                    <td><strong>{a.siswa_nama}</strong></td>
-                    <td><span className="badge blue">{a.program}</span></td>
-                    <td>
-                      <span className={`badge ${a.status === "Hadir" ? "green" : "red"}`}>
-                        {a.status}
-                      </span>
+                    <td style={{ fontSize: ".82rem", color: "var(--muted)" }}>
+                      {new Date(a.tanggal).toLocaleDateString("id-ID", {
+                        weekday: "long", day: "numeric", month: "long",
+                      })}
                     </td>
+                    <td><strong>{a.siswa_nama}</strong></td>
                   </tr>
                 ))}
               </tbody>
@@ -352,7 +417,7 @@ export function RekapAbsensi() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 5. HONOR GURU (lihat honor sendiri)
+// 5. HONOR GURU (lihat honor sendiri — hasil akhir dari admin)
 // ─────────────────────────────────────────────────────────────
 export function HonorGuruPage() {
   const [bulan, setBulan] = useState("Maret");
@@ -362,8 +427,13 @@ export function HonorGuruPage() {
     h => h.guru_id === MY_GURU_ID && h.bulan === bulan && h.tahun === tahun
   );
 
-  const totalSiswa = honor?.rincian.reduce((a, b) => a + b.jumlah_siswa, 0) || 0;
-  const totalHonor = totalSiswa * (MY_GURU?.honor_per_siswa || 0);
+  // Kalkulasi total dari 3 komponen
+  const totalMengajar = (honor?.mengajar || []).reduce((a, b) => a + b.jumlah_siswa * b.honor_per_siswa, 0);
+  const totalKomponen = (honor?.komponen_tetap || []).reduce((a, b) => a + b.nominal, 0);
+  const totalTambahan = (honor?.honor_tambahan || []).reduce((a, b) => a + b.nominal, 0);
+  const totalGaji     = totalMengajar + totalKomponen + totalTambahan;
+
+  const fmt = (n) => "Rp " + n.toLocaleString("id-ID");
 
   return (
     <div className="fade-in">
@@ -384,60 +454,131 @@ export function HonorGuruPage() {
       </div>
 
       {!honor ? (
-        <div className="content-card" style={{ textAlign: "center", padding: 40 }}>
+        <div className="content-card" style={{ textAlign: "center", padding: 48 }}>
           <div style={{ fontSize: "2.5rem", marginBottom: 12 }}>📭</div>
-          <p style={{ color: "var(--muted)" }}>Belum ada data honor bulan {bulan} {tahun}.</p>
+          <p style={{ color: "var(--muted)" }}>Belum ada data honor {bulan} {tahun}.</p>
+          <p style={{ fontSize: ".82rem", color: "var(--muted)", marginTop: 8 }}>
+            Honor akan muncul setelah admin menginput data honor bulan ini.
+          </p>
         </div>
       ) : (
-        <>
-          {/* Rincian per program */}
-          <div className="table-card" style={{ marginBottom: 20 }}>
-            <div className="table-head"><h3>Rincian Honor — {bulan} {tahun}</h3></div>
-            <table>
-              <thead>
-                <tr><th>Program</th><th>Jumlah Siswa</th><th>Honor/Siswa</th><th>Subtotal</th></tr>
-              </thead>
-              <tbody>
-                {honor.rincian.map((r, i) => (
-                  <tr key={i}>
-                    <td><strong>{r.program}</strong></td>
-                    <td>{r.jumlah_siswa} siswa</td>
-                    <td>Rp {MY_GURU?.honor_per_siswa.toLocaleString("id-ID")}</td>
-                    <td style={{ fontWeight: 700, color: "var(--blue)" }}>
-                      Rp {(r.jumlah_siswa * (MY_GURU?.honor_per_siswa || 0)).toLocaleString("id-ID")}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div style={{ maxWidth: 600 }}>
+
+          {/* Total gaji — info utama */}
+          <div style={{
+            background: "linear-gradient(135deg, var(--blue), #60a5fa)",
+            borderRadius: 16, padding: "24px 28px", marginBottom: 20, color: "#fff",
+          }}>
+            <div style={{ fontSize: ".85rem", opacity: .85, marginBottom: 6 }}>
+              Total Gaji — {bulan} {tahun}
+            </div>
+            <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "2rem", fontWeight: 800 }}>
+              {fmt(totalGaji)}
+            </div>
+            <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center" }}>
+              <span style={{
+                padding: "4px 12px", borderRadius: 100, fontSize: ".75rem", fontWeight: 700,
+                background: honor.status === "Dibayar" ? "rgba(255,255,255,.25)" : "rgba(239,68,68,.3)",
+              }}>
+                {honor.status === "Dibayar" ? "✓ Sudah Dibayar" : "⏳ Belum Dibayar"}
+              </span>
+              {honor.tgl_bayar !== "-" && (
+                <span style={{ fontSize: ".78rem", opacity: .8 }}>
+                  Dibayar: {honor.tgl_bayar}
+                </span>
+              )}
+            </div>
           </div>
 
-          {/* Summary box */}
-          <div className="content-card" style={{ maxWidth: 400 }}>
-            <h3 style={{ marginBottom: 14 }}>💰 Total Honor</h3>
-            {[
-              { label: "Total Siswa Diajar", val: totalSiswa + " siswa" },
-              { label: "Honor per Siswa",    val: "Rp " + MY_GURU?.honor_per_siswa.toLocaleString("id-ID") },
-              { label: "Tanggal Bayar",      val: honor.tgl_bayar },
-            ].map((item, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f1f5f9" }}>
-                <span style={{ fontSize: ".85rem", color: "var(--muted)" }}>{item.label}</span>
-                <strong style={{ fontSize: ".85rem" }}>{item.val}</strong>
+          {/* Rincian honor mengajar */}
+          <div className="content-card" style={{ marginBottom: 16 }}>
+            <h3 style={{ marginBottom: 14, fontSize: ".92rem" }}>📚 Honor Mengajar</h3>
+            {(honor.mengajar || []).map((m, i) => (
+              <div key={i} style={{
+                display: "flex", justifyContent: "space-between",
+                alignItems: "center", padding: "10px 0",
+                borderBottom: "1px solid #f1f5f9",
+              }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: ".88rem" }}>{m.program}</div>
+                  <div style={{ fontSize: ".75rem", color: "var(--muted)", marginTop: 2 }}>
+                    {m.jumlah_siswa} siswa hadir
+                  </div>
+                </div>
+                <strong style={{ color: "var(--blue)" }}>
+                  {fmt(m.jumlah_siswa * m.honor_per_siswa)}
+                </strong>
               </div>
             ))}
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "14px 0 0" }}>
-              <span style={{ fontSize: ".95rem", fontWeight: 700 }}>Total Honor</span>
-              <strong style={{ fontSize: "1.1rem", color: "var(--blue)" }}>
-                Rp {totalHonor.toLocaleString("id-ID")}
-              </strong>
-            </div>
-            <div style={{ marginTop: 12 }}>
-              <span className={`badge ${honor.status === "Dibayar" ? "green" : "red"}`} style={{ fontSize: ".8rem" }}>
-                {honor.status === "Dibayar" ? "✅ Sudah Dibayar" : "⏳ Belum Dibayar"}
-              </span>
+            <div style={{
+              display: "flex", justifyContent: "space-between",
+              padding: "10px 0", fontWeight: 700,
+            }}>
+              <span>Subtotal Mengajar</span>
+              <span style={{ color: "var(--blue)" }}>{fmt(totalMengajar)}</span>
             </div>
           </div>
-        </>
+
+          {/* Komponen tetap */}
+          {(honor.komponen_tetap || []).length > 0 && (
+            <div className="content-card" style={{ marginBottom: 16 }}>
+              <h3 style={{ marginBottom: 14, fontSize: ".92rem" }}>💰 Komponen Tetap</h3>
+              {(honor.komponen_tetap || []).map((k, i) => (
+                <div key={i} style={{
+                  display: "flex", justifyContent: "space-between",
+                  padding: "10px 0", borderBottom: "1px solid #f1f5f9",
+                }}>
+                  <span style={{ fontSize: ".88rem" }}>{k.nama}</span>
+                  <strong style={{ color: "#16a34a" }}>{fmt(k.nominal)}</strong>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Honor tambahan */}
+          {(honor.honor_tambahan || []).length > 0 && (
+            <div className="content-card" style={{ marginBottom: 16 }}>
+              <h3 style={{ marginBottom: 14, fontSize: ".92rem" }}>➕ Honor Tambahan</h3>
+              {(honor.honor_tambahan || []).map((t, i) => (
+                <div key={i} style={{
+                  display: "flex", justifyContent: "space-between",
+                  padding: "10px 0", borderBottom: "1px solid #f1f5f9",
+                }}>
+                  <span style={{ fontSize: ".88rem" }}>{t.nama}</span>
+                  <strong style={{ color: "#d97706" }}>{fmt(t.nominal)}</strong>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Ringkasan total */}
+          <div style={{
+            background: "#f8fafc", border: "1px solid var(--border)",
+            borderRadius: 12, padding: "16px 20px",
+          }}>
+            {[
+              { label: "Honor Mengajar",  val: totalMengajar, color: "var(--blue)"  },
+              { label: "Komponen Tetap",  val: totalKomponen, color: "#16a34a"      },
+              { label: "Honor Tambahan",  val: totalTambahan, color: "#d97706"      },
+            ].map((row, i) => (
+              <div key={i} style={{
+                display: "flex", justifyContent: "space-between",
+                padding: "8px 0", borderBottom: "1px solid var(--border)",
+                fontSize: ".88rem",
+              }}>
+                <span style={{ color: "var(--muted)" }}>{row.label}</span>
+                <span style={{ fontWeight: 600, color: row.color }}>{fmt(row.val)}</span>
+              </div>
+            ))}
+            <div style={{
+              display: "flex", justifyContent: "space-between",
+              padding: "12px 0 0", fontWeight: 800,
+            }}>
+              <span>TOTAL GAJI</span>
+              <span style={{ fontSize: "1.1rem", color: "var(--blue)" }}>{fmt(totalGaji)}</span>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -453,7 +594,7 @@ export function ProfilGuru({ user }) {
     nama:    MY_GURU?.nama    || "",
     email:   MY_GURU?.email   || "",
     kontak:  MY_GURU?.kontak  || "",
-    program: MY_GURU?.program.join(", ") || "",
+    program: "",
   });
 
   const handleSave = () => {
@@ -479,7 +620,7 @@ export function ProfilGuru({ user }) {
               { label: "Email",             val: form.email   },
               { label: "No. Telepon",       val: form.kontak  },
               { label: "Program Diajar",    val: form.program },
-              { label: "Honor per Siswa",   val: "Rp " + (MY_GURU?.honor_per_siswa || 0).toLocaleString("id-ID") },
+              { label: "Program Diajar", val: HONOR_SETTING.filter(s => s.guru_id === MY_GURU_ID).map(s => s.program).join(", ") },
               { label: "Status",            val: MY_GURU?.status || "Aktif" },
             ].map((f, i) => (
               <div key={i} className="profile-field">

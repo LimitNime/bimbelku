@@ -9,6 +9,8 @@ import {
   STUDENTS_DATA,
   TEACHERS_DATA,
   HONOR_DATA,
+  HONOR_SETTING,
+  KOMPONEN_HONOR_SETTING,
   PEMASUKAN_DATA,
   PENGELUARAN_DATA,
   SPP_DATA,
@@ -546,17 +548,87 @@ export function SaldoLaporan() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 5. HONOR GURU
+// 5. HONOR GURU — CRUD lengkap + slip gaji
 // ─────────────────────────────────────────────────────────────
+
+// Helper hitung total honor
+const hitungTotal = (h) => {
+  const totalMengajar   = (h.mengajar || []).reduce((a, b) => a + b.jumlah_siswa * b.honor_per_siswa, 0);
+  const totalKomponen   = (h.komponen_tetap || []).reduce((a, b) => a + b.nominal, 0);
+  const totalTambahan   = (h.honor_tambahan || []).reduce((a, b) => a + b.nominal, 0);
+  return totalMengajar + totalKomponen + totalTambahan;
+};
+
+// Cetak slip gaji
+const cetakSlip = (h) => {
+  const totalMengajar = (h.mengajar || []).reduce((a, b) => a + b.jumlah_siswa * b.honor_per_siswa, 0);
+  const totalKomponen = (h.komponen_tetap || []).reduce((a, b) => a + b.nominal, 0);
+  const totalTambahan = (h.honor_tambahan || []).reduce((a, b) => a + b.nominal, 0);
+  const totalGaji     = totalMengajar + totalKomponen + totalTambahan;
+
+  const fmt = (n) => "Rp " + n.toLocaleString("id-ID");
+  const line = "═".repeat(44);
+  const dash = "─".repeat(44);
+
+  let slip = `
+${line}
+         SLIP GAJI — ${h.bulan.toUpperCase()} ${h.tahun}
+                   BimbelKu
+${line}
+ Nama    : ${h.guru_nama}
+ Periode : ${h.bulan} ${h.tahun}
+${line}
+ HONOR MENGAJAR
+${dash}`;
+
+  (h.mengajar || []).forEach(m => {
+    const sub = m.jumlah_siswa * m.honor_per_siswa;
+    slip += `\n ${m.program}`;
+    slip += `\n   ${m.jumlah_siswa} siswa × ${fmt(m.honor_per_siswa)} = ${fmt(sub)}`;
+  });
+
+  slip += `\n${dash}`;
+  slip += `\n Subtotal Mengajar        : ${fmt(totalMengajar)}`;
+
+  if ((h.komponen_tetap || []).length > 0) {
+    slip += `\n${line}\n KOMPONEN TETAP\n${dash}`;
+    (h.komponen_tetap || []).forEach(k => {
+      slip += `\n ${k.nama.padEnd(24)} : ${fmt(k.nominal)}`;
+    });
+  }
+
+  if ((h.honor_tambahan || []).length > 0) {
+    slip += `\n${line}\n HONOR TAMBAHAN\n${dash}`;
+    (h.honor_tambahan || []).forEach(t => {
+      slip += `\n ${t.nama.padEnd(24)} : ${fmt(t.nominal)}`;
+    });
+  }
+
+  slip += `\n${line}`;
+  slip += `\n TOTAL GAJI               : ${fmt(totalGaji)}`;
+  slip += `\n${line}`;
+  slip += `\n Status  : ${h.status === "Dibayar" ? "✓ Sudah Dibayar" : "Belum Dibayar"}`;
+  if (h.tgl_bayar !== "-") slip += `\n Tgl Bayar: ${h.tgl_bayar}`;
+  slip += `\n${line}\n`;
+
+  const blob = new Blob([slip.trim()], { type: "text/plain;charset=utf-8;" });
+  const a    = Object.assign(document.createElement("a"), {
+    href: URL.createObjectURL(blob),
+    download: `slip-gaji-${h.guru_nama.replace(/ /g, "-")}-${h.bulan}-${h.tahun}.txt`,
+  });
+  a.click();
+};
+
 export function HonorGuru() {
   const [bulan,    setBulan]    = useState("Maret");
   const [tahun,    setTahun]    = useState("2026");
   const [data,     setData]     = useState(HONOR_DATA);
-  const [openId,   setOpenId]   = useState(null); // rincian yang dibuka
+  const [editId,   setEditId]   = useState(null); // ID honor yang sedang diedit
 
   const filtered = data.filter(h => h.bulan === bulan && h.tahun === tahun);
 
-  const toggle = (id) => {
+  // ── Toggle status bayar ──────────────────────────────────────
+  const toggleBayar = (id) => {
     setData(data.map(h => h.id === id ? {
       ...h,
       status:    h.status === "Dibayar" ? "Belum" : "Dibayar",
@@ -564,126 +636,381 @@ export function HonorGuru() {
     } : h));
   };
 
+  // ── Tambah honor baru untuk guru yang belum ada di bulan ini ─
+  const tambahHonor = (guru) => {
+    if (data.find(h => h.guru_id === guru.id && h.bulan === bulan && h.tahun === tahun)) return;
+    const setting      = HONOR_SETTING.filter(s => s.guru_id === guru.id);
+    const komponenSett = KOMPONEN_HONOR_SETTING.filter(k => k.guru_id === guru.id && k.aktif);
+    const newHonor = {
+      id:             Date.now(),
+      guru_id:        guru.id,
+      guru_nama:      guru.nama,
+      bulan,  tahun,
+      status:         "Belum",
+      tgl_bayar:      "-",
+      mengajar:       setting.map(s => ({ program: s.program, jumlah_siswa: 0, honor_per_siswa: s.honor_per_siswa })),
+      komponen_tetap: komponenSett.map(k => ({ nama: k.nama, nominal: k.nominal_default })),
+      honor_tambahan: [],
+    };
+    setData([...data, newHonor]);
+    setEditId(newHonor.id);
+  };
+
+  // ── Export CSV ───────────────────────────────────────────────
   const handleExport = () => {
     exportCSV(`honor-guru-${bulan}-${tahun}.csv`,
-      ["Nama Guru", "Total Siswa", "Honor/Siswa", "Total Honor", "Status", "Tgl Bayar"],
+      ["Nama Guru", "Honor Mengajar", "Komponen Tetap", "Honor Tambahan", "Total Gaji", "Status", "Tgl Bayar"],
       filtered.map(h => {
-        const totalSiswa = h.rincian.reduce((a, b) => a + b.jumlah_siswa, 0);
-        const guru = TEACHERS_DATA.find(g => g.id === h.guru_id);
-        return [h.guru_nama, totalSiswa, guru?.honor_per_siswa || 0, totalSiswa * (guru?.honor_per_siswa || 0), h.status, h.tgl_bayar];
+        const m = (h.mengajar||[]).reduce((a,b)=>a+b.jumlah_siswa*b.honor_per_siswa,0);
+        const k = (h.komponen_tetap||[]).reduce((a,b)=>a+b.nominal,0);
+        const t = (h.honor_tambahan||[]).reduce((a,b)=>a+b.nominal,0);
+        return [h.guru_nama, m, k, t, m+k+t, h.status, h.tgl_bayar];
       })
     );
   };
 
+  // Guru yang belum punya honor di bulan ini
+  const guruBelumAda = TEACHERS_DATA.filter(g =>
+    !data.find(h => h.guru_id === g.id && h.bulan === bulan && h.tahun === tahun)
+  );
+
   return (
     <div className="fade-in">
-      {/* Filter */}
+
+      {/* ── Filter & toolbar ───────────────────────────────── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <div className="form-group" style={{ margin: 0 }}>
             <label className="form-label">Bulan</label>
-            <select className="form-input" style={{ width: 160 }} value={bulan} onChange={e => setBulan(e.target.value)}>
+            <select className="form-input" style={{ width: 160 }} value={bulan} onChange={e => { setBulan(e.target.value); setEditId(null); }}>
               {BULAN_LIST.map(b => <option key={b}>{b}</option>)}
             </select>
           </div>
           <div className="form-group" style={{ margin: 0 }}>
             <label className="form-label">Tahun</label>
-            <select className="form-input" style={{ width: 100 }} value={tahun} onChange={e => setTahun(e.target.value)}>
+            <select className="form-input" style={{ width: 100 }} value={tahun} onChange={e => { setTahun(e.target.value); setEditId(null); }}>
               {TAHUN_LIST.map(t => <option key={t}>{t}</option>)}
             </select>
           </div>
         </div>
-        <button className="btn-outline" style={{ padding: "9px 14px", fontSize: ".82rem" }} onClick={handleExport}>
-          📥 Export Excel
-        </button>
-      </div>
-
-      {/* Tabel honor */}
-      <div className="table-card">
-        <div className="table-head"><h3>Honor Guru — {bulan} {tahun}</h3></div>
-        <div style={{ overflowX: "auto" }}>
-          <table>
-            <thead>
-              <tr><th>Nama Guru</th><th>Program (klik untuk detail)</th><th>Total Siswa</th><th>Honor/Siswa</th><th>Total Honor</th><th>Tgl Bayar</th><th>Status</th><th>Aksi</th></tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--muted)", padding: 32 }}>Belum ada data honor bulan ini.</td></tr>
-              ) : filtered.map(h => {
-                const guru       = TEACHERS_DATA.find(g => g.id === h.guru_id);
-                const totalSiswa = h.rincian.reduce((a, b) => a + b.jumlah_siswa, 0);
-                const totalHonor = totalSiswa * (guru?.honor_per_siswa || 0);
-                const isOpen     = openId === h.id;
-
-                return (
-                  <>
-                    <tr key={h.id}>
-                      <td><strong>{h.guru_nama}</strong></td>
-                      <td>
-                        <button onClick={() => setOpenId(isOpen ? null : h.id)}
-                          style={{
-                            background: "#dbeafe", color: "#2563eb", border: "none",
-                            padding: "4px 10px", borderRadius: 7, cursor: "pointer",
-                            fontSize: ".75rem", fontWeight: 700, fontFamily: "inherit",
-                          }}>
-                          {h.rincian.length} Program {isOpen ? "▲" : "▼"}
-                        </button>
-                      </td>
-                      <td>{totalSiswa} siswa</td>
-                      <td>Rp {(guru?.honor_per_siswa || 0).toLocaleString("id-ID")}</td>
-                      <td style={{ fontWeight: 700, color: "#2563eb" }}>Rp {totalHonor.toLocaleString("id-ID")}</td>
-                      <td style={{ fontSize: ".8rem", color: "var(--muted)" }}>{h.tgl_bayar}</td>
-                      <td><span className={`badge ${h.status === "Dibayar" ? "green" : "red"}`}>{h.status}</span></td>
-                      <td>
-                        <button onClick={() => toggle(h.id)}
-                          style={{
-                            padding: "4px 10px", borderRadius: 7, border: "none", cursor: "pointer",
-                            fontFamily: "inherit", fontSize: ".75rem", fontWeight: 700,
-                            background: h.status === "Dibayar" ? "#fee2e2" : "#dcfce7",
-                            color: h.status === "Dibayar" ? "#dc2626" : "#16a34a",
-                          }}>
-                          {h.status === "Dibayar" ? "Batal" : "✓ Bayar"}
-                        </button>
-                      </td>
-                    </tr>
-
-                    {/* Rincian per program */}
-                    {isOpen && (
-                      <tr key={h.id + "-detail"} style={{ background: "#f8fafc" }}>
-                        <td colSpan={8} style={{ padding: "12px 20px" }}>
-                          <div style={{ fontSize: ".82rem", fontWeight: 700, marginBottom: 8, color: "var(--muted)" }}>
-                            Rincian Program — {h.guru_nama}
-                          </div>
-                          <table style={{ width: "auto", minWidth: 360 }}>
-                            <thead>
-                              <tr>
-                                <th style={{ background: "#e2e8f0" }}>Program</th>
-                                <th style={{ background: "#e2e8f0" }}>Jumlah Siswa</th>
-                                <th style={{ background: "#e2e8f0" }}>Subtotal</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {h.rincian.map((r, i) => (
-                                <tr key={i}>
-                                  <td>{r.program}</td>
-                                  <td>{r.jumlah_siswa} siswa</td>
-                                  <td style={{ fontWeight: 600, color: "#2563eb" }}>
-                                    Rp {(r.jumlah_siswa * (guru?.honor_per_siswa || 0)).toLocaleString("id-ID")}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </td>
-                      </tr>
-                    )}
-                  </>
-                );
-              })}
-            </tbody>
-          </table>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {guruBelumAda.map(g => (
+            <button key={g.id} onClick={() => tambahHonor(g)}
+              className="btn-outline" style={{ padding: "8px 12px", fontSize: ".78rem" }}>
+              + Honor {g.nama.split(" ").pop()}
+            </button>
+          ))}
+          <button className="btn-outline" style={{ padding: "9px 14px", fontSize: ".82rem" }} onClick={handleExport}>
+            📥 Export
+          </button>
         </div>
       </div>
+
+      {/* ── Daftar honor per guru ───────────────────────────── */}
+      {filtered.length === 0 ? (
+        <div className="content-card" style={{ textAlign: "center", padding: 48 }}>
+          <div style={{ fontSize: "2.5rem", marginBottom: 12 }}>📭</div>
+          <p style={{ color: "var(--muted)" }}>Belum ada data honor {bulan} {tahun}.</p>
+          <p style={{ fontSize: ".82rem", color: "var(--muted)", marginTop: 8 }}>
+            Klik tombol "+ Honor [Nama Guru]" di atas untuk mulai input.
+          </p>
+        </div>
+      ) : (
+        filtered.map(h => (
+          <HonorCard
+            key={h.id}
+            honor={h}
+            isEdit={editId === h.id}
+            onToggleEdit={() => setEditId(editId === h.id ? null : h.id)}
+            onUpdate={(updated) => setData(data.map(d => d.id === h.id ? updated : d))}
+            onDelete={() => { setData(data.filter(d => d.id !== h.id)); setEditId(null); }}
+            onToggleBayar={() => toggleBayar(h.id)}
+            onSlip={() => cetakSlip(h)}
+          />
+        ))
+      )}
+    </div>
+  );
+}
+
+// ── HonorCard — kartu per guru ────────────────────────────────
+function HonorCard({ honor, isEdit, onToggleEdit, onUpdate, onDelete, onToggleBayar, onSlip }) {
+  const h           = honor;
+  const totalMengajar = (h.mengajar||[]).reduce((a,b)=>a+b.jumlah_siswa*b.honor_per_siswa,0);
+  const totalKomponen = (h.komponen_tetap||[]).reduce((a,b)=>a+b.nominal,0);
+  const totalTambahan = (h.honor_tambahan||[]).reduce((a,b)=>a+b.nominal,0);
+  const totalGaji     = totalMengajar + totalKomponen + totalTambahan;
+  const fmt           = (n) => "Rp " + n.toLocaleString("id-ID");
+
+  // ── Update helpers ────────────────────────────────────────
+  const updateMengajar = (idx, field, val) => {
+    const m = [...h.mengajar];
+    m[idx]  = { ...m[idx], [field]: parseInt(val) || 0 };
+    onUpdate({ ...h, mengajar: m });
+  };
+
+  const updateKomponen = (idx, val) => {
+    const k = [...h.komponen_tetap];
+    k[idx]  = { ...k[idx], nominal: parseInt(val) || 0 };
+    onUpdate({ ...h, komponen_tetap: k });
+  };
+
+  const updateTambahan = (id, field, val) => {
+    onUpdate({ ...h, honor_tambahan: h.honor_tambahan.map(t =>
+      t.id === id ? { ...t, [field]: field === "nominal" ? (parseInt(val)||0) : val } : t
+    )});
+  };
+
+  const tambahHonorLain = () => {
+    onUpdate({ ...h, honor_tambahan: [...h.honor_tambahan, { id: Date.now(), nama: "Honor Tambahan", nominal: 0 }] });
+  };
+
+  const hapusTambahan = (id) => {
+    onUpdate({ ...h, honor_tambahan: h.honor_tambahan.filter(t => t.id !== id) });
+  };
+
+  return (
+    <div style={{
+      background: "#fff", borderRadius: 16, border: "1px solid var(--border)",
+      marginBottom: 20, overflow: "hidden",
+    }}>
+      {/* Header kartu */}
+      <div style={{
+        padding: "16px 20px", display: "flex", justifyContent: "space-between",
+        alignItems: "center", flexWrap: "wrap", gap: 10,
+        background: isEdit ? "#eff6ff" : "#fff",
+        borderBottom: "1px solid var(--border)",
+      }}>
+        <div>
+          <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>{h.guru_nama}</h3>
+          <span style={{ fontSize: ".78rem", color: "var(--muted)" }}>{h.bulan} {h.tahun}</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "1.1rem", fontWeight: 800, color: "var(--blue)" }}>
+            {fmt(totalGaji)}
+          </div>
+          <span className={`badge ${h.status === "Dibayar" ? "green" : "red"}`}>{h.status}</span>
+          <button onClick={onToggleEdit} className="btn-outline" style={{ padding: "6px 12px", fontSize: ".78rem" }}>
+            {isEdit ? "✕ Tutup" : "✏️ Edit"}
+          </button>
+          <button onClick={onSlip} style={{
+            padding: "6px 12px", borderRadius: 8, border: "none", cursor: "pointer",
+            background: "#f3e8ff", color: "#7c3aed", fontWeight: 600, fontSize: ".78rem", fontFamily: "inherit",
+          }}>🖨️ Slip</button>
+          <button onClick={onToggleBayar} style={{
+            padding: "6px 12px", borderRadius: 8, border: "none", cursor: "pointer",
+            fontFamily: "inherit", fontSize: ".78rem", fontWeight: 700,
+            background: h.status === "Dibayar" ? "#fee2e2" : "#dcfce7",
+            color: h.status === "Dibayar" ? "#dc2626" : "#16a34a",
+          }}>
+            {h.status === "Dibayar" ? "Batal Bayar" : "✓ Tandai Dibayar"}
+          </button>
+          <button onClick={onDelete} className="icon-btn del" title="Hapus honor bulan ini">
+            <Icon name="trash" size={13} />
+          </button>
+        </div>
+      </div>
+
+      {/* Body — mode view */}
+      {!isEdit && (
+        <div style={{ padding: "16px 20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 16 }}>
+
+            {/* Honor mengajar */}
+            <div>
+              <div style={{ fontSize: ".75rem", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 10 }}>
+                📚 Honor Mengajar
+              </div>
+              {(h.mengajar||[]).map((m,i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #f1f5f9", fontSize: ".85rem" }}>
+                  <span>{m.program} ({m.jumlah_siswa} siswa)</span>
+                  <strong style={{ color: "var(--blue)" }}>{fmt(m.jumlah_siswa*m.honor_per_siswa)}</strong>
+                </div>
+              ))}
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontSize: ".85rem", fontWeight: 700 }}>
+                <span>Subtotal</span><span style={{ color: "var(--blue)" }}>{fmt(totalMengajar)}</span>
+              </div>
+            </div>
+
+            {/* Komponen & tambahan */}
+            <div>
+              {(h.komponen_tetap||[]).length > 0 && (
+                <>
+                  <div style={{ fontSize: ".75rem", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 10 }}>
+                    💰 Komponen Tetap
+                  </div>
+                  {(h.komponen_tetap||[]).map((k,i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #f1f5f9", fontSize: ".85rem" }}>
+                      <span>{k.nama}</span><strong style={{ color: "#16a34a" }}>{fmt(k.nominal)}</strong>
+                    </div>
+                  ))}
+                </>
+              )}
+              {(h.honor_tambahan||[]).length > 0 && (
+                <>
+                  <div style={{ fontSize: ".75rem", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".5px", margin: "12px 0 10px" }}>
+                    ➕ Honor Tambahan
+                  </div>
+                  {(h.honor_tambahan||[]).map((t,i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #f1f5f9", fontSize: ".85rem" }}>
+                      <span>{t.nama}</span><strong style={{ color: "#d97706" }}>{fmt(t.nominal)}</strong>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Body — mode edit */}
+      {isEdit && (
+        <div style={{ padding: "20px" }}>
+
+          {/* 1. Honor mengajar */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: ".82rem", fontWeight: 700, marginBottom: 10, color: "var(--text)" }}>
+              📚 Honor Mengajar — input jumlah siswa hadir
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Program</th>
+                    <th>Honor/Siswa</th>
+                    <th>Jml Siswa Hadir</th>
+                    <th>Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(h.mengajar||[]).map((m, i) => (
+                    <tr key={i}>
+                      <td><strong>{m.program}</strong></td>
+                      <td style={{ color: "var(--muted)", fontSize: ".82rem" }}>{fmt(m.honor_per_siswa)}</td>
+                      <td>
+                        <input
+                          type="number" min="0"
+                          value={m.jumlah_siswa}
+                          onChange={e => updateMengajar(i, "jumlah_siswa", e.target.value)}
+                          style={{
+                            width: 80, padding: "6px 10px", borderRadius: 8,
+                            border: "1.5px solid var(--border)", fontFamily: "inherit",
+                            fontSize: ".88rem", textAlign: "center",
+                          }}
+                        />
+                        <span style={{ fontSize: ".78rem", color: "var(--muted)", marginLeft: 6 }}>siswa</span>
+                      </td>
+                      <td style={{ fontWeight: 700, color: "var(--blue)" }}>
+                        {fmt(m.jumlah_siswa * m.honor_per_siswa)}
+                      </td>
+                    </tr>
+                  ))}
+                  <tr style={{ background: "#f8fafc" }}>
+                    <td colSpan={3} style={{ fontWeight: 700, textAlign: "right" }}>Subtotal Mengajar</td>
+                    <td style={{ fontWeight: 800, color: "var(--blue)" }}>{fmt(totalMengajar)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 2. Komponen tetap */}
+          {(h.komponen_tetap||[]).length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: ".82rem", fontWeight: 700, marginBottom: 10, color: "var(--text)" }}>
+                💰 Komponen Tetap — edit nominal jika perlu
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
+                {(h.komponen_tetap||[]).map((k, i) => (
+                  <div key={i} className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">{k.nama}</label>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: ".82rem", color: "var(--muted)" }}>Rp</span>
+                      <input
+                        type="number" min="0"
+                        value={k.nominal}
+                        onChange={e => updateKomponen(i, e.target.value)}
+                        className="form-input" style={{ flex: 1 }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 3. Honor tambahan */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div style={{ fontSize: ".82rem", fontWeight: 700, color: "var(--text)" }}>
+                ➕ Honor Tambahan (tidak permanen)
+              </div>
+              <button onClick={tambahHonorLain} style={{
+                padding: "5px 12px", borderRadius: 8, border: "1.5px dashed var(--blue)",
+                color: "var(--blue)", background: "transparent", cursor: "pointer",
+                fontSize: ".78rem", fontWeight: 700, fontFamily: "inherit",
+              }}>
+                + Tambah Honor Lain
+              </button>
+            </div>
+
+            {(h.honor_tambahan||[]).length === 0 ? (
+              <p style={{ fontSize: ".82rem", color: "var(--muted)", fontStyle: "italic" }}>
+                Belum ada honor tambahan bulan ini.
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {(h.honor_tambahan||[]).map(t => (
+                  <div key={t.id} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                    <input
+                      className="form-input"
+                      style={{ flex: 2, minWidth: 140 }}
+                      value={t.nama}
+                      placeholder="Nama honor..."
+                      onChange={e => updateTambahan(t.id, "nama", e.target.value)}
+                    />
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 120 }}>
+                      <span style={{ fontSize: ".82rem", color: "var(--muted)" }}>Rp</span>
+                      <input
+                        type="number" min="0"
+                        className="form-input"
+                        value={t.nominal}
+                        onChange={e => updateTambahan(t.id, "nominal", e.target.value)}
+                      />
+                    </div>
+                    <button onClick={() => hapusTambahan(t.id)} className="icon-btn del">
+                      <Icon name="trash" size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Total & simpan */}
+          <div style={{
+            background: "#f8fafc", borderRadius: 12, padding: "16px 20px",
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            flexWrap: "wrap", gap: 12,
+          }}>
+            <div>
+              <div style={{ fontSize: ".78rem", color: "var(--muted)" }}>Total Gaji Bulan Ini</div>
+              <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "1.4rem", fontWeight: 800, color: "var(--blue)" }}>
+                {fmt(totalGaji)}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={onSlip} style={{
+                padding: "10px 16px", borderRadius: 10, border: "none", cursor: "pointer",
+                background: "#f3e8ff", color: "#7c3aed", fontWeight: 700, fontSize: ".85rem", fontFamily: "inherit",
+              }}>🖨️ Cetak Slip</button>
+              <button onClick={onToggleEdit} className="btn-primary" style={{ padding: "10px 18px", fontSize: ".85rem" }}>
+                💾 Simpan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -13,6 +13,8 @@ import {
   PROGRAMS,
   SPP_DATA,
   PEMASUKAN_DATA,
+  HONOR_SETTING,
+  KOMPONEN_HONOR_SETTING,
   PENGELUARAN_DATA,
 } from "../../data/index.js";
 
@@ -335,8 +337,9 @@ export function ManajemenGuru() {
   const [search, setSearch]     = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId]     = useState(null);
+  const [honorSettingLocal, setHonorSettingLocal] = useState(HONOR_SETTING);
   const [form, setForm] = useState({
-    nama: "", email: "", kontak: "", program: [], honor_per_siswa: 12000, status: "Aktif",
+    nama: "", email: "", kontak: "", status: "Aktif",
   });
 
   const filtered = data.filter(g =>
@@ -345,13 +348,13 @@ export function ManajemenGuru() {
   );
 
   const resetForm = () => {
-    setForm({ nama: "", email: "", kontak: "", program: [], honor_per_siswa: 12000, status: "Aktif" });
+    setForm({ nama: "", email: "", kontak: "", status: "Aktif" });
     setEditId(null);
     setShowForm(false);
   };
 
   const handleEdit = (g) => {
-    setForm({ ...g });
+    setForm({ nama: g.nama, email: g.email, kontak: g.kontak, status: g.status });
     setEditId(g.id);
     setShowForm(true);
   };
@@ -359,7 +362,7 @@ export function ManajemenGuru() {
   const handleSave = () => {
     if (!form.nama || !form.email) return alert("Nama dan email wajib diisi!");
     if (editId) {
-      setData(data.map(g => g.id === editId ? { ...form, id: editId } : g));
+      setData(data.map(g => g.id === editId ? { ...g, ...form } : g));
     } else {
       setData([...data, { ...form, id: Date.now() }]);
     }
@@ -368,14 +371,12 @@ export function ManajemenGuru() {
 
   const handleExport = () => {
     exportCSV("data-guru.csv",
-      ["Nama", "Email", "Kontak", "Program", "Honor/Siswa", "Jml Siswa", "Status"],
-      filtered.map(g => [
-        g.nama, g.email, g.kontak,
-        g.program.join("; "),
-        g.honor_per_siswa,
-        STUDENTS_DATA.filter(s => s.guru === g.nama).length,
-        g.status,
-      ])
+      ["Nama", "Email", "Kontak", "Program", "Jml Siswa", "Status"],
+      filtered.map(g => {
+        const programs = HONOR_SETTING.filter(h => h.guru_id === g.id).map(h => h.program).join("; ");
+        const jmlSiswa = STUDENTS_DATA.filter(s => s.guru === g.nama).length;
+        return [g.nama, g.email, g.kontak, programs, jmlSiswa, g.status];
+      })
     );
   };
 
@@ -412,18 +413,56 @@ export function ManajemenGuru() {
               </div>
             ))}
             <div className="form-group">
-              <label className="form-label">Honor per Siswa (Rp)</label>
-              <input className="form-input" type="number" value={form.honor_per_siswa}
-                onChange={e => setForm({ ...form, honor_per_siswa: parseInt(e.target.value) })} />
-            </div>
-            <div className="form-group">
               <label className="form-label">Status</label>
               <select className="form-input" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
                 {["Aktif", "Nonaktif"].map(s => <option key={s}>{s}</option>)}
               </select>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+
+          {/* Program yang diajar — tambah/kurang */}
+          {editId && (
+            <div style={{ marginTop: 16, borderTop: "1px solid var(--border)", paddingTop: 16 }}>
+              <div style={{ fontWeight: 700, fontSize: ".88rem", marginBottom: 10 }}>
+                📚 Program yang Diajar
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                {PROGRAMS.map(p => {
+                  const sudahAda = HONOR_SETTING.find(h => h.guru_id === editId && h.program === p.nama);
+                  return (
+                    <button key={p.id}
+                      onClick={() => {
+                        if (sudahAda) {
+                          setHonorSettingLocal(prev => prev.filter(h => !(h.guru_id === editId && h.program === p.nama)));
+                        } else {
+                          setHonorSettingLocal(prev => [...prev, {
+                            id: Date.now() + p.id,
+                            guru_id: editId,
+                            guru_nama: form.nama,
+                            program: p.nama,
+                            honor_per_siswa: 0,
+                          }]);
+                        }
+                      }}
+                      style={{
+                        padding: "6px 14px", borderRadius: 100, border: "none",
+                        cursor: "pointer", fontFamily: "inherit", fontSize: ".78rem",
+                        fontWeight: 700, transition: ".15s",
+                        background: sudahAda ? "var(--blue)" : "#f1f5f9",
+                        color: sudahAda ? "#fff" : "var(--muted)",
+                      }}>
+                      {sudahAda ? "✓ " : "+ "}{p.nama}
+                    </button>
+                  );
+                })}
+              </div>
+              <p style={{ fontSize: ".75rem", color: "var(--muted)" }}>
+                Klik program untuk tambah/hapus. Nominal honor per siswa bisa diatur di menu <strong>Setting Honor Guru</strong>.
+              </p>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
             <button className="btn-primary" style={{ padding: "10px 18px", fontSize: ".85rem" }} onClick={handleSave}>
               💾 {editId ? "Update" : "Simpan"}
             </button>
@@ -438,11 +477,12 @@ export function ManajemenGuru() {
         <div style={{ overflowX: "auto" }}>
           <table>
             <thead>
-              <tr><th>Nama</th><th>Kontak</th><th>Program</th><th>Jml Siswa</th><th>Honor/Siswa</th><th>Status</th><th>Aksi</th></tr>
+              <tr><th>Nama</th><th>Kontak</th><th>Program</th><th>Jml Siswa</th><th>Status</th><th>Aksi</th></tr>
             </thead>
             <tbody>
               {filtered.map(g => {
-                const jmlSiswa = STUDENTS_DATA.filter(s => s.guru === g.nama).length;
+                const jmlSiswa  = STUDENTS_DATA.filter(s => s.guru === g.nama).length;
+                const programs  = honorSettingLocal.filter(h => h.guru_id === g.id);
                 return (
                   <tr key={g.id}>
                     <td>
@@ -452,13 +492,17 @@ export function ManajemenGuru() {
                     <td style={{ fontSize: ".82rem" }}>{g.kontak}</td>
                     <td>
                       <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                        {g.program.map((p, i) => <span key={i} className="badge blue" style={{ fontSize: ".7rem" }}>{p}</span>)}
+                        {programs.length > 0
+                          ? programs.map((h, i) => (
+                              <span key={i} className="badge blue" style={{ fontSize: ".7rem" }}>
+                                {h.program}
+                              </span>
+                            ))
+                          : <span style={{ fontSize: ".78rem", color: "var(--muted)" }}>Belum ada</span>
+                        }
                       </div>
                     </td>
                     <td><span className="badge blue">{jmlSiswa} siswa</span></td>
-                    <td style={{ fontSize: ".82rem", fontWeight: 600 }}>
-                      Rp {g.honor_per_siswa.toLocaleString("id-ID")}
-                    </td>
                     <td><span className={`badge ${g.status === "Aktif" ? "green" : "red"}`}>{g.status}</span></td>
                     <td>
                       <div className="action-btns">
@@ -705,6 +749,442 @@ export function ManajemenUser() {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// 6. SETTING HONOR GURU
+// Admin setting honor per program per guru
+// ─────────────────────────────────────────────────────────────
+export function SettingHonor() {
+  const [honorSetting, setHonorSetting] = useState(HONOR_SETTING);
+  const [komponenSetting, setKomponenSetting] = useState(KOMPONEN_HONOR_SETTING);
+  const [activeGuru, setActiveGuru] = useState(TEACHERS_DATA[0]?.id || 1);
+  const [showHonorForm, setShowHonorForm]       = useState(false);
+  const [showKomponenForm, setShowKomponenForm] = useState(false);
+  const [editHonorId,    setEditHonorId]        = useState(null);
+  const [editKomponenId, setEditKomponenId]     = useState(null);
+  const [honorForm, setHonorForm]       = useState({ program: "", honor_per_siswa: 0 });
+  const [komponenForm, setKomponenForm] = useState({ nama: "", nominal_default: 0, aktif: true });
+
+  const guru          = TEACHERS_DATA.find(g => g.id === activeGuru);
+  const myHonor       = honorSetting.filter(h => h.guru_id === activeGuru);
+  const myKomponen    = komponenSetting.filter(k => k.guru_id === activeGuru);
+
+  // ── Honor per Program ──────────────────────────────────────
+  const resetHonorForm = () => {
+    setHonorForm({ program: "", honor_per_siswa: 0 });
+    setEditHonorId(null);
+    setShowHonorForm(false);
+  };
+
+  const handleEditHonor = (item) => {
+    setHonorForm({ program: item.program, honor_per_siswa: item.honor_per_siswa });
+    setEditHonorId(item.id);
+    setShowHonorForm(true);
+    setShowKomponenForm(false);
+  };
+
+  const handleSaveHonor = () => {
+    if (!honorForm.program) return alert("Program wajib diisi!");
+    if (editHonorId) {
+      setHonorSetting(honorSetting.map(h =>
+        h.id === editHonorId ? { ...h, ...honorForm, honor_per_siswa: parseInt(honorForm.honor_per_siswa) } : h
+      ));
+    } else {
+      setHonorSetting([...honorSetting, {
+        id: Date.now(), guru_id: activeGuru,
+        guru_nama: guru?.nama || "",
+        ...honorForm,
+        honor_per_siswa: parseInt(honorForm.honor_per_siswa),
+      }]);
+    }
+    resetHonorForm();
+  };
+
+  // ── Komponen Tetap ─────────────────────────────────────────
+  const resetKomponenForm = () => {
+    setKomponenForm({ nama: "", nominal_default: 0, aktif: true });
+    setEditKomponenId(null);
+    setShowKomponenForm(false);
+  };
+
+  const handleEditKomponen = (item) => {
+    setKomponenForm({ nama: item.nama, nominal_default: item.nominal_default, aktif: item.aktif });
+    setEditKomponenId(item.id);
+    setShowKomponenForm(true);
+    setShowHonorForm(false);
+  };
+
+  const handleSaveKomponen = () => {
+    if (!komponenForm.nama) return alert("Nama komponen wajib diisi!");
+    if (editKomponenId) {
+      setKomponenSetting(komponenSetting.map(k =>
+        k.id === editKomponenId ? { ...k, ...komponenForm, nominal_default: parseInt(komponenForm.nominal_default) } : k
+      ));
+    } else {
+      setKomponenSetting([...komponenSetting, {
+        id: Date.now(), guru_id: activeGuru,
+        ...komponenForm,
+        nominal_default: parseInt(komponenForm.nominal_default),
+      }]);
+    }
+    resetKomponenForm();
+  };
+
+  const toggleAktif = (id) => {
+    setKomponenSetting(komponenSetting.map(k =>
+      k.id === id ? { ...k, aktif: !k.aktif } : k
+    ));
+  };
+
+  return (
+    <div className="fade-in">
+      {/* Pilih guru */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
+        {TEACHERS_DATA.map(g => (
+          <button key={g.id} onClick={() => { setActiveGuru(g.id); resetHonorForm(); resetKomponenForm(); }}
+            style={{
+              padding: "8px 16px", borderRadius: 10, border: "none", cursor: "pointer",
+              fontFamily: "inherit", fontSize: ".85rem", fontWeight: 600, transition: ".2s",
+              background: activeGuru === g.id ? "var(--blue)" : "#f1f5f9",
+              color: activeGuru === g.id ? "#fff" : "var(--muted)",
+              boxShadow: activeGuru === g.id ? "0 4px 12px rgba(37,99,235,.3)" : "none",
+            }}>
+            {g.nama}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 20 }}>
+
+        {/* ── Bagian 1: Honor per Program ───────────────────── */}
+        <div>
+          <div className="table-card">
+            <div className="table-head">
+              <h3>📚 Honor per Program</h3>
+              <button className="btn-primary" style={{ padding: "7px 12px", fontSize: ".78rem" }}
+                onClick={() => { setShowHonorForm(!showHonorForm); setEditHonorId(null); setHonorForm({ program: "", honor_per_siswa: 0 }); setShowKomponenForm(false); }}>
+                <Icon name="plus" size={13} />Tambah
+              </button>
+            </div>
+
+            {/* Form honor program */}
+            {showHonorForm && (
+              <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)", background: "#f8fafc" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Program *</label>
+                    <select className="form-input" value={honorForm.program}
+                      onChange={e => setHonorForm({ ...honorForm, program: e.target.value })}>
+                      <option value="">-- Pilih Program --</option>
+                      {PROGRAMS.map(p => <option key={p.id}>{p.nama}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Honor/Siswa (Rp) *</label>
+                    <input className="form-input" type="number" min="0"
+                      value={honorForm.honor_per_siswa}
+                      onChange={e => setHonorForm({ ...honorForm, honor_per_siswa: e.target.value })} />
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn-primary" style={{ padding: "7px 14px", fontSize: ".8rem" }} onClick={handleSaveHonor}>
+                    💾 {editHonorId ? "Update" : "Simpan"}
+                  </button>
+                  <button className="btn-outline" style={{ padding: "7px 14px", fontSize: ".8rem" }} onClick={resetHonorForm}>Batal</button>
+                </div>
+              </div>
+            )}
+
+            {/* Tabel honor program */}
+            {myHonor.length === 0 ? (
+              <div style={{ padding: 32, textAlign: "center", color: "var(--muted)", fontSize: ".85rem" }}>
+                Belum ada setting honor program.
+              </div>
+            ) : (
+              <table>
+                <thead><tr><th>Program</th><th>Honor/Siswa</th><th>Aksi</th></tr></thead>
+                <tbody>
+                  {myHonor.map(h => (
+                    <tr key={h.id}>
+                      <td><strong>{h.program}</strong></td>
+                      <td style={{ fontWeight: 600, color: "var(--blue)" }}>
+                        Rp {h.honor_per_siswa.toLocaleString("id-ID")}
+                      </td>
+                      <td>
+                        <div className="action-btns">
+                          <button className="icon-btn edit" onClick={() => handleEditHonor(h)}>
+                            <Icon name="edit" size={13} />
+                          </button>
+                          <button className="icon-btn del"
+                            onClick={() => setHonorSetting(honorSetting.filter(x => x.id !== h.id))}>
+                            <Icon name="trash" size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+        {/* ── Bagian 2: Komponen Tetap ──────────────────────── */}
+        <div>
+          <div className="table-card">
+            <div className="table-head">
+              <h3>💰 Komponen Tetap</h3>
+              <button className="btn-primary" style={{ padding: "7px 12px", fontSize: ".78rem" }}
+                onClick={() => { setShowKomponenForm(!showKomponenForm); setEditKomponenId(null); setKomponenForm({ nama: "", nominal_default: 0, aktif: true }); setShowHonorForm(false); }}>
+                <Icon name="plus" size={13} />Tambah
+              </button>
+            </div>
+
+            {/* Form komponen */}
+            {showKomponenForm && (
+              <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)", background: "#f8fafc" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Nama Komponen *</label>
+                    <input className="form-input" value={komponenForm.nama}
+                      onChange={e => setKomponenForm({ ...komponenForm, nama: e.target.value })}
+                      placeholder="Gaji Pokok, Transportasi..." />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Nominal Default (Rp)</label>
+                    <input className="form-input" type="number" min="0"
+                      value={komponenForm.nominal_default}
+                      onChange={e => setKomponenForm({ ...komponenForm, nominal_default: e.target.value })} />
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: ".85rem", cursor: "pointer" }}>
+                    <input type="checkbox" checked={komponenForm.aktif}
+                      onChange={e => setKomponenForm({ ...komponenForm, aktif: e.target.checked })} />
+                    Aktif (otomatis muncul saat input honor)
+                  </label>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn-primary" style={{ padding: "7px 14px", fontSize: ".8rem" }} onClick={handleSaveKomponen}>
+                    💾 {editKomponenId ? "Update" : "Simpan"}
+                  </button>
+                  <button className="btn-outline" style={{ padding: "7px 14px", fontSize: ".8rem" }} onClick={resetKomponenForm}>Batal</button>
+                </div>
+              </div>
+            )}
+
+            {/* Tabel komponen */}
+            {myKomponen.length === 0 ? (
+              <div style={{ padding: 32, textAlign: "center", color: "var(--muted)", fontSize: ".85rem" }}>
+                Belum ada setting komponen tetap.
+              </div>
+            ) : (
+              <table>
+                <thead><tr><th>Komponen</th><th>Default</th><th>Aktif</th><th>Aksi</th></tr></thead>
+                <tbody>
+                  {myKomponen.map(k => (
+                    <tr key={k.id}>
+                      <td><strong>{k.nama}</strong></td>
+                      <td style={{ fontSize: ".82rem" }}>Rp {k.nominal_default.toLocaleString("id-ID")}</td>
+                      <td>
+                        <button onClick={() => toggleAktif(k.id)} style={{
+                          padding: "3px 10px", borderRadius: 7, border: "none", cursor: "pointer",
+                          fontFamily: "inherit", fontSize: ".72rem", fontWeight: 700,
+                          background: k.aktif ? "#dcfce7" : "#f1f5f9",
+                          color: k.aktif ? "#16a34a" : "var(--muted)",
+                        }}>
+                          {k.aktif ? "✓ Aktif" : "Nonaktif"}
+                        </button>
+                      </td>
+                      <td>
+                        <div className="action-btns">
+                          <button className="icon-btn edit" onClick={() => handleEditKomponen(k)}>
+                            <Icon name="edit" size={13} />
+                          </button>
+                          <button className="icon-btn del"
+                            onClick={() => setKomponenSetting(komponenSetting.filter(x => x.id !== k.id))}>
+                            <Icon name="trash" size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Info ringkasan */}
+          <div style={{
+            background: "#f8fafc", border: "1px solid var(--border)",
+            borderRadius: 10, padding: "12px 16px", marginTop: 12,
+            fontSize: ".8rem", color: "var(--muted)", lineHeight: 1.6,
+          }}>
+            💡 <strong>Catatan:</strong> Nominal default adalah nilai awal saat input honor bulan baru.
+            Admin tetap bisa ubah nominal tiap bulan saat input honor.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// 7. MANAJEMEN PROGRAM BIMBEL
+// Admin bisa tambah/edit/hapus program
+// Program ini yang dipakai di Data Siswa & Setting Honor
+// ─────────────────────────────────────────────────────────────
+export function ManajemenProgram() {
+  const [data, setData]         = useState(PROGRAMS);
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId]     = useState(null);
+  const [search, setSearch]     = useState("");
+  const [form, setForm] = useState({
+    nama: "", jenjang: "", spp: 0,
+  });
+
+  const filtered = data.filter(p =>
+    p.nama.toLowerCase().includes(search.toLowerCase()) ||
+    p.jenjang.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const resetForm = () => {
+    setForm({ nama: "", jenjang: "", spp: 0 });
+    setEditId(null);
+    setShowForm(false);
+  };
+
+  const handleEdit = (p) => {
+    setForm({ nama: p.nama, jenjang: p.jenjang, spp: p.spp });
+    setEditId(p.id);
+    setShowForm(true);
+  };
+
+  const handleSave = () => {
+    if (!form.nama) return alert("Nama program wajib diisi!");
+    if (editId) {
+      setData(data.map(p => p.id === editId
+        ? { ...p, nama: form.nama, jenjang: form.jenjang, spp: parseInt(form.spp) || 0 }
+        : p
+      ));
+    } else {
+      setData([...data, {
+        id: Date.now(),
+        nama: form.nama,
+        jenjang: form.jenjang,
+        spp: parseInt(form.spp) || 0,
+      }]);
+    }
+    resetForm();
+  };
+
+  return (
+    <div className="fade-in">
+      {/* Toolbar */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+        <input className="form-input" style={{ maxWidth: 260 }}
+          placeholder="🔍 Cari program / jenjang..."
+          value={search} onChange={e => setSearch(e.target.value)} />
+        <button className="btn-primary" style={{ padding: "9px 14px", fontSize: ".85rem" }}
+          onClick={() => { resetForm(); setShowForm(!showForm); }}>
+          <Icon name="plus" size={14} />{showForm && !editId ? "Tutup" : "Tambah Program"}
+        </button>
+      </div>
+
+      {/* Form tambah/edit */}
+      {showForm && (
+        <div className="content-card" style={{ marginBottom: 20 }}>
+          <h3>{editId ? "Edit Program" : "Tambah Program Baru"}</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 12, marginTop: 14 }}>
+            <div className="form-group">
+              <label className="form-label">Nama Program *</label>
+              <input className="form-input" value={form.nama}
+                onChange={e => setForm({ ...form, nama: e.target.value })}
+                placeholder="cth: Matematika SMP" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Jenjang</label>
+              <input className="form-input" value={form.jenjang}
+                onChange={e => setForm({ ...form, jenjang: e.target.value })}
+                placeholder="cth: SMP / SD / Semua" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Biaya SPP (Rp)</label>
+              <input className="form-input" type="number" min="0" value={form.spp}
+                onChange={e => setForm({ ...form, spp: e.target.value })}
+                placeholder="0" />
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+            <button className="btn-primary" style={{ padding: "10px 18px", fontSize: ".85rem" }}
+              onClick={handleSave}>
+              💾 {editId ? "Update" : "Simpan"}
+            </button>
+            <button className="btn-outline" style={{ padding: "10px 18px", fontSize: ".85rem" }}
+              onClick={resetForm}>Batal</button>
+          </div>
+        </div>
+      )}
+
+      {/* Tabel program */}
+      <div className="table-card">
+        <div className="table-head">
+          <h3>Daftar Program ({filtered.length})</h3>
+        </div>
+        <div style={{ overflowX: "auto" }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Nama Program</th>
+                <th>Jenjang</th>
+                <th>Biaya SPP</th>
+                <th>Dipakai (Siswa)</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(p => {
+                const jmlSiswa = STUDENTS_DATA.filter(s => s.program === p.nama).length;
+                return (
+                  <tr key={p.id}>
+                    <td><strong>{p.nama}</strong></td>
+                    <td style={{ fontSize: ".82rem", color: "var(--muted)" }}>{p.jenjang}</td>
+                    <td style={{ fontWeight: 600, color: "var(--blue)" }}>
+                      Rp {p.spp.toLocaleString("id-ID")}
+                    </td>
+                    <td>
+                      <span className="badge blue">{jmlSiswa} siswa</span>
+                    </td>
+                    <td>
+                      <div className="action-btns">
+                        <button className="icon-btn edit" onClick={() => handleEdit(p)}>
+                          <Icon name="edit" size={13} />
+                        </button>
+                        <button className="icon-btn del"
+                          onClick={() => {
+                            if (jmlSiswa > 0) return alert(`Program "${p.nama}" masih dipakai ${jmlSiswa} siswa. Pindahkan siswa dulu sebelum menghapus.`);
+                            setData(data.filter(x => x.id !== p.id));
+                          }}>
+                          <Icon name="trash" size={13} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {/* Info */}
+        <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border)" }}>
+          <div className="info-box">
+            💡 Program yang ditambahkan di sini akan otomatis tersedia di menu <strong>Data Siswa</strong> dan <strong>Setting Honor Guru</strong>.
+          </div>
         </div>
       </div>
     </div>

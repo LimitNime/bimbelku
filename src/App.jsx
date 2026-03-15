@@ -20,6 +20,8 @@ import {
   ManajemenGuru,
   ManajemenArtikel,
   ManajemenUser,
+  SettingHonor,
+  ManajemenProgram,
 } from "./dashboard/admin/AdminPages.jsx";
 
 import {
@@ -114,6 +116,8 @@ export default function App() {
         case "artikel-admin": return <ManajemenArtikel onDetail={a => openDashArticle(a, "artikel-admin")} />;
         case "tutorial":      return <Tutorial />;
         case "user-mgmt":     return <ManajemenUser />;
+        case "setting-honor": return <SettingHonor />;
+        case "program":       return <ManajemenProgram />;
         default: break;
       }
     }

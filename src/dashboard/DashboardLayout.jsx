@@ -13,6 +13,8 @@ const ALL_LABELS = {
   // Admin
   "siswa":          "Data Siswa",
   "guru":           "Data Guru",
+  "setting-honor":  "Setting Honor Guru",
+  "program":        "Program Bimbel",
   "spp":            "SPP Siswa",
   "pemasukan":      "Pemasukan",
   "pengeluaran":    "Pengeluaran",
