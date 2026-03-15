@@ -38,9 +38,6 @@ const MENUS = {
     "Utama": [
       { key: "dashboard",      label: "Dashboard",          icon: "home"    },
     ],
-    "Siswa": [
-      { key: "daftar-siswa",   label: "Daftar Siswa",       icon: "users"   },
-    ],
     "Absensi": [
       { key: "input-absensi",  label: "Input Absensi",      icon: "check"   },
       { key: "rekap-absensi",  label: "Rekap Absensi",      icon: "calendar"},

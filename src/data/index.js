@@ -12,43 +12,37 @@ export const DEMO_ACCOUNTS = [
 ];
 
 // ── Program Bimbel ────────────────────────────────────────────
-// Daftar program yang tersedia di bimbel
+// Tidak ada harga SPP — karena tiap siswa beda nominal
 export const PROGRAMS = [
-  { id: 1, nama: "Calistung",        jenjang: "TK / SD Awal",  spp: 150000 },
-  { id: 2, nama: "Matematika SD",    jenjang: "SD",             spp: 175000 },
-  { id: 3, nama: "Matematika SMP",   jenjang: "SMP",            spp: 200000 },
-  { id: 4, nama: "Matematika SMA",   jenjang: "SMA",            spp: 225000 },
-  { id: 5, nama: "Bahasa Inggris",   jenjang: "Semua Jenjang",  spp: 175000 },
-  { id: 6, nama: "IPA Terpadu",      jenjang: "SMP",            spp: 200000 },
-  { id: 7, nama: "Persiapan UN",     jenjang: "SD / SMP / SMA", spp: 250000 },
-  { id: 8, nama: "Baca Tulis Quran", jenjang: "Semua Usia",     spp: 125000 },
+  { id: 1, nama: "Calistung",        jenjang: "TK / SD Awal"  },
+  { id: 2, nama: "Matematika SD",    jenjang: "SD"             },
+  { id: 3, nama: "Matematika SMP",   jenjang: "SMP"            },
+  { id: 4, nama: "Matematika SMA",   jenjang: "SMA"            },
+  { id: 5, nama: "Bahasa Inggris",   jenjang: "Semua Jenjang"  },
+  { id: 6, nama: "IPA Terpadu",      jenjang: "SMP"            },
+  { id: 7, nama: "Persiapan UN",     jenjang: "SD / SMP / SMA" },
+  { id: 8, nama: "Baca Tulis Quran", jenjang: "Semua Usia"     },
 ];
 
 // ── Setting Honor per Guru per Program ───────────────────────
-// Honor per siswa BEDA tiap guru, walaupun program sama
-// Admin yang setting ini di halaman Data Guru
 export const HONOR_SETTING = [
-  // Drs. Budi Santoso
   { id: 1, guru_id: 1, guru_nama: "Drs. Budi Santoso", program: "Matematika SMP", honor_per_siswa: 13000 },
   { id: 2, guru_id: 1, guru_nama: "Drs. Budi Santoso", program: "Matematika SMA", honor_per_siswa: 15000 },
-
-  // Ibu Sari Dewi
   { id: 3, guru_id: 2, guru_nama: "Ibu Sari Dewi",     program: "Calistung",      honor_per_siswa: 6000  },
   { id: 4, guru_id: 2, guru_nama: "Ibu Sari Dewi",     program: "Bahasa Inggris", honor_per_siswa: 10000 },
   { id: 5, guru_id: 2, guru_nama: "Ibu Sari Dewi",     program: "Matematika SD",  honor_per_siswa: 8000  },
-
-  // Pak Rizky Maulana
   { id: 6, guru_id: 3, guru_nama: "Pak Rizky Maulana", program: "IPA Terpadu",    honor_per_siswa: 12000 },
   { id: 7, guru_id: 3, guru_nama: "Pak Rizky Maulana", program: "Persiapan UN",   honor_per_siswa: 14000 },
 ];
 
 // ── Data Guru ─────────────────────────────────────────────────
-// program → diambil otomatis dari HONOR_SETTING
-// honor_per_siswa sudah dipindah ke HONOR_SETTING (per program)
+// Hanya identitas — program & jumlah siswa tidak disimpan di sini
 export const TEACHERS_DATA = [
   {
     id:      1,
     nama:    "Drs. Budi Santoso",
+    ttl:     "Bandung, 15 Februari 1980",
+    alamat:  "Jl. Merdeka No. 10, Bandung",
     email:   "budi.s@bimbelku.com",
     kontak:  "08711111111",
     status:  "Aktif",
@@ -56,6 +50,8 @@ export const TEACHERS_DATA = [
   {
     id:      2,
     nama:    "Ibu Sari Dewi",
+    ttl:     "Jakarta, 3 Maret 1985",
+    alamat:  "Jl. Kenanga No. 5, Jakarta Selatan",
     email:   "sari.d@bimbelku.com",
     kontak:  "08722222222",
     status:  "Aktif",
@@ -63,6 +59,8 @@ export const TEACHERS_DATA = [
   {
     id:      3,
     nama:    "Pak Rizky Maulana",
+    ttl:     "Surabaya, 21 Juli 1990",
+    alamat:  "Jl. Anggrek No. 3, Surabaya",
     email:   "rizky.m@bimbelku.com",
     kontak:  "08733333333",
     status:  "Aktif",
@@ -70,117 +68,132 @@ export const TEACHERS_DATA = [
 ];
 
 // ── Data Siswa ────────────────────────────────────────────────
+// programs = array, tiap item punya nama program & spp sendiri
+// total_spp = jumlah semua program (dihitung otomatis)
 export const STUDENTS_DATA = [
   {
-    id:          1,
-    nama:        "Andi Pratama",
-    email:       "andi@email.com",
-    ttl:         "Jakarta, 12 Januari 2010",
-    alamat:      "Jl. Mawar No. 12, Jakarta Selatan",
-    kontak:      "08111111111",
-    sekolah:     "SMPN 1 Jakarta",
-    program:     "Matematika SMP",
-    besaran_spp: 200000,
-    status:      "Aktif",
-    guru:        "Drs. Budi Santoso",
-    guru_id:     1,
-    tgl_daftar:  "2025-01-10",
+    id:         1,
+    nama:       "Andi Pratama",
+    email:      "andi@email.com",
+    ttl:        "Jakarta, 12 Januari 2010",
+    alamat:     "Jl. Mawar No. 12, Jakarta Selatan",
+    kontak:     "08111111111",
+    sekolah:    "SMPN 1 Jakarta",
+    programs:   [
+      { nama: "Matematika SMP", spp: 200000 },
+      { nama: "Bahasa Inggris", spp: 175000 },
+    ],
+    total_spp:  375000,
+    status:     "Aktif",
+    tgl_daftar: "2025-01-10",
   },
   {
-    id:          2,
-    nama:        "Siti Rahma",
-    email:       "siti@email.com",
-    ttl:         "Bandung, 5 Maret 2012",
-    alamat:      "Jl. Melati No. 5, Bandung",
-    kontak:      "08222222222",
-    sekolah:     "SDN 2 Bandung",
-    program:     "Calistung",
-    besaran_spp: 150000,
-    status:      "Aktif",
-    guru:        "Ibu Sari Dewi",
-    guru_id:     2,
-    tgl_daftar:  "2025-02-01",
+    id:         2,
+    nama:       "Siti Rahma",
+    email:      "siti@email.com",
+    ttl:        "Bandung, 5 Maret 2012",
+    alamat:     "Jl. Melati No. 5, Bandung",
+    kontak:     "08222222222",
+    sekolah:    "SDN 2 Bandung",
+    programs:   [
+      { nama: "Calistung", spp: 150000 },
+    ],
+    total_spp:  150000,
+    status:     "Aktif",
+    tgl_daftar: "2025-02-01",
   },
   {
-    id:          3,
-    nama:        "Budi Wijaya",
-    email:       "budi@email.com",
-    ttl:         "Surabaya, 20 Juli 2009",
-    alamat:      "Jl. Kenanga No. 8, Surabaya",
-    kontak:      "08333333333",
-    sekolah:     "SMAN 3 Surabaya",
-    program:     "Matematika SMA",
-    besaran_spp: 225000,
-    status:      "Aktif",
-    guru:        "Drs. Budi Santoso",
-    guru_id:     1,
-    tgl_daftar:  "2025-01-15",
+    id:         3,
+    nama:       "Budi Wijaya",
+    email:      "budi@email.com",
+    ttl:        "Surabaya, 20 Juli 2009",
+    alamat:     "Jl. Kenanga No. 8, Surabaya",
+    kontak:     "08333333333",
+    sekolah:    "SMAN 3 Surabaya",
+    programs:   [
+      { nama: "Matematika SMA", spp: 225000 },
+    ],
+    total_spp:  225000,
+    status:     "Aktif",
+    tgl_daftar: "2025-01-15",
   },
   {
-    id:          4,
-    nama:        "Dewi Lestari",
-    email:       "dewi@email.com",
-    ttl:         "Yogyakarta, 3 November 2011",
-    alamat:      "Jl. Flamboyan No. 3, Yogyakarta",
-    kontak:      "08444444444",
-    sekolah:     "SMPN 5 Yogyakarta",
-    program:     "Bahasa Inggris",
-    besaran_spp: 175000,
-    status:      "Nonaktif",
-    guru:        "Ibu Sari Dewi",
-    guru_id:     2,
-    tgl_daftar:  "2025-03-01",
+    id:         4,
+    nama:       "Dewi Lestari",
+    email:      "dewi@email.com",
+    ttl:        "Yogyakarta, 3 November 2011",
+    alamat:     "Jl. Flamboyan No. 3, Yogyakarta",
+    kontak:     "08444444444",
+    sekolah:    "SMPN 5 Yogyakarta",
+    programs:   [
+      { nama: "Bahasa Inggris", spp: 175000 },
+    ],
+    total_spp:  175000,
+    status:     "Nonaktif",
+    tgl_daftar: "2025-03-01",
   },
   {
-    id:          5,
-    nama:        "Rizal Maulana",
-    email:       "rizal@email.com",
-    ttl:         "Medan, 15 April 2010",
-    alamat:      "Jl. Anggrek No. 7, Medan",
-    kontak:      "08555555555",
-    sekolah:     "SMPN 2 Medan",
-    program:     "IPA Terpadu",
-    besaran_spp: 200000,
-    status:      "Aktif",
-    guru:        "Pak Rizky Maulana",
-    guru_id:     3,
-    tgl_daftar:  "2025-02-15",
+    id:         5,
+    nama:       "Rizal Maulana",
+    email:      "rizal@email.com",
+    ttl:        "Medan, 15 April 2010",
+    alamat:     "Jl. Anggrek No. 7, Medan",
+    kontak:     "08555555555",
+    sekolah:    "SMPN 2 Medan",
+    programs:   [
+      { nama: "IPA Terpadu",  spp: 200000 },
+      { nama: "Matematika SMP", spp: 180000 },
+    ],
+    total_spp:  380000,
+    status:     "Aktif",
+    tgl_daftar: "2025-02-15",
   },
   {
-    id:          6,
-    nama:        "Putri Amalia",
-    email:       "putri@email.com",
-    ttl:         "Semarang, 28 Agustus 2013",
-    alamat:      "Jl. Dahlia No. 15, Semarang",
-    kontak:      "08666666666",
-    sekolah:     "SDN 3 Semarang",
-    program:     "Matematika SD",
-    besaran_spp: 175000,
-    status:      "Cuti",
-    guru:        "Ibu Sari Dewi",
-    guru_id:     2,
-    tgl_daftar:  "2025-01-20",
+    id:         6,
+    nama:       "Putri Amalia",
+    email:      "putri@email.com",
+    ttl:        "Semarang, 28 Agustus 2013",
+    alamat:     "Jl. Dahlia No. 15, Semarang",
+    kontak:     "08666666666",
+    sekolah:    "SDN 3 Semarang",
+    programs:   [
+      { nama: "Matematika SD", spp: 175000 },
+      { nama: "Calistung",     spp: 150000 },
+    ],
+    total_spp:  325000,
+    status:     "Cuti",
+    tgl_daftar: "2025-01-20",
   },
 ];
 
 // ── Data SPP per Siswa ────────────────────────────────────────
+// Tiap baris = 1 program 1 siswa 1 bulan
+// Siswa multi program = banyak baris per bulan
 export const SPP_DATA = [
-  // Andi Pratama
-  { id: 1,  siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Matematika SMP", bulan: "Januari",  tahun: "2026", nominal: 200000, status: "Lunas",       tgl_bayar: "3 Jan 2026"  },
-  { id: 2,  siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Matematika SMP", bulan: "Februari", tahun: "2026", nominal: 200000, status: "Lunas",       tgl_bayar: "2 Feb 2026"  },
-  { id: 3,  siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Matematika SMP", bulan: "Maret",    tahun: "2026", nominal: 200000, status: "Lunas",       tgl_bayar: "4 Mar 2026"  },
-  // Siti Rahma
-  { id: 4,  siswa_id: 2, siswa_nama: "Siti Rahma",    program: "Calistung",      bulan: "Januari",  tahun: "2026", nominal: 150000, status: "Lunas",       tgl_bayar: "5 Jan 2026"  },
-  { id: 5,  siswa_id: 2, siswa_nama: "Siti Rahma",    program: "Calistung",      bulan: "Februari", tahun: "2026", nominal: 150000, status: "Lunas",       tgl_bayar: "6 Feb 2026"  },
-  { id: 6,  siswa_id: 2, siswa_nama: "Siti Rahma",    program: "Calistung",      bulan: "Maret",    tahun: "2026", nominal: 150000, status: "Belum Bayar", tgl_bayar: "-"           },
-  // Budi Wijaya
-  { id: 7,  siswa_id: 3, siswa_nama: "Budi Wijaya",   program: "Matematika SMA", bulan: "Januari",  tahun: "2026", nominal: 225000, status: "Lunas",       tgl_bayar: "4 Jan 2026"  },
-  { id: 8,  siswa_id: 3, siswa_nama: "Budi Wijaya",   program: "Matematika SMA", bulan: "Februari", tahun: "2026", nominal: 225000, status: "Lunas",       tgl_bayar: "3 Feb 2026"  },
-  { id: 9,  siswa_id: 3, siswa_nama: "Budi Wijaya",   program: "Matematika SMA", bulan: "Maret",    tahun: "2026", nominal: 225000, status: "Belum Bayar", tgl_bayar: "-"           },
-  // Rizal Maulana
-  { id: 10, siswa_id: 5, siswa_nama: "Rizal Maulana", program: "IPA Terpadu",    bulan: "Januari",  tahun: "2026", nominal: 200000, status: "Lunas",       tgl_bayar: "7 Jan 2026"  },
-  { id: 11, siswa_id: 5, siswa_nama: "Rizal Maulana", program: "IPA Terpadu",    bulan: "Februari", tahun: "2026", nominal: 200000, status: "Belum Bayar", tgl_bayar: "-"           },
-  { id: 12, siswa_id: 5, siswa_nama: "Rizal Maulana", program: "IPA Terpadu",    bulan: "Maret",    tahun: "2026", nominal: 200000, status: "Belum Bayar", tgl_bayar: "-"           },
+  // Andi Pratama — Matematika SMP
+  { id: 1,  siswa_id: 1, siswa_nama: "Andi Pratama", program: "Matematika SMP", bulan: "Januari",  tahun: "2026", nominal: 200000, status: "Lunas",       tgl_bayar: "3 Jan 2026"  },
+  { id: 2,  siswa_id: 1, siswa_nama: "Andi Pratama", program: "Matematika SMP", bulan: "Februari", tahun: "2026", nominal: 200000, status: "Lunas",       tgl_bayar: "2 Feb 2026"  },
+  { id: 3,  siswa_id: 1, siswa_nama: "Andi Pratama", program: "Matematika SMP", bulan: "Maret",    tahun: "2026", nominal: 200000, status: "Lunas",       tgl_bayar: "4 Mar 2026"  },
+  // Andi Pratama — Bahasa Inggris
+  { id: 4,  siswa_id: 1, siswa_nama: "Andi Pratama", program: "Bahasa Inggris", bulan: "Januari",  tahun: "2026", nominal: 175000, status: "Lunas",       tgl_bayar: "3 Jan 2026"  },
+  { id: 5,  siswa_id: 1, siswa_nama: "Andi Pratama", program: "Bahasa Inggris", bulan: "Februari", tahun: "2026", nominal: 175000, status: "Lunas",       tgl_bayar: "2 Feb 2026"  },
+  { id: 6,  siswa_id: 1, siswa_nama: "Andi Pratama", program: "Bahasa Inggris", bulan: "Maret",    tahun: "2026", nominal: 175000, status: "Belum Bayar", tgl_bayar: "-"           },
+  // Siti Rahma — Calistung
+  { id: 7,  siswa_id: 2, siswa_nama: "Siti Rahma",   program: "Calistung",      bulan: "Januari",  tahun: "2026", nominal: 150000, status: "Lunas",       tgl_bayar: "5 Jan 2026"  },
+  { id: 8,  siswa_id: 2, siswa_nama: "Siti Rahma",   program: "Calistung",      bulan: "Februari", tahun: "2026", nominal: 150000, status: "Lunas",       tgl_bayar: "6 Feb 2026"  },
+  { id: 9,  siswa_id: 2, siswa_nama: "Siti Rahma",   program: "Calistung",      bulan: "Maret",    tahun: "2026", nominal: 150000, status: "Belum Bayar", tgl_bayar: "-"           },
+  // Budi Wijaya — Matematika SMA
+  { id: 10, siswa_id: 3, siswa_nama: "Budi Wijaya",  program: "Matematika SMA", bulan: "Januari",  tahun: "2026", nominal: 225000, status: "Lunas",       tgl_bayar: "4 Jan 2026"  },
+  { id: 11, siswa_id: 3, siswa_nama: "Budi Wijaya",  program: "Matematika SMA", bulan: "Februari", tahun: "2026", nominal: 225000, status: "Lunas",       tgl_bayar: "3 Feb 2026"  },
+  { id: 12, siswa_id: 3, siswa_nama: "Budi Wijaya",  program: "Matematika SMA", bulan: "Maret",    tahun: "2026", nominal: 225000, status: "Belum Bayar", tgl_bayar: "-"           },
+  // Rizal Maulana — IPA Terpadu
+  { id: 13, siswa_id: 5, siswa_nama: "Rizal Maulana",program: "IPA Terpadu",    bulan: "Januari",  tahun: "2026", nominal: 200000, status: "Lunas",       tgl_bayar: "7 Jan 2026"  },
+  { id: 14, siswa_id: 5, siswa_nama: "Rizal Maulana",program: "IPA Terpadu",    bulan: "Februari", tahun: "2026", nominal: 200000, status: "Belum Bayar", tgl_bayar: "-"           },
+  { id: 15, siswa_id: 5, siswa_nama: "Rizal Maulana",program: "IPA Terpadu",    bulan: "Maret",    tahun: "2026", nominal: 200000, status: "Belum Bayar", tgl_bayar: "-"           },
+  // Rizal Maulana — Matematika SMP
+  { id: 16, siswa_id: 5, siswa_nama: "Rizal Maulana",program: "Matematika SMP", bulan: "Januari",  tahun: "2026", nominal: 180000, status: "Lunas",       tgl_bayar: "7 Jan 2026"  },
+  { id: 17, siswa_id: 5, siswa_nama: "Rizal Maulana",program: "Matematika SMP", bulan: "Februari", tahun: "2026", nominal: 180000, status: "Belum Bayar", tgl_bayar: "-"           },
+  { id: 18, siswa_id: 5, siswa_nama: "Rizal Maulana",program: "Matematika SMP", bulan: "Maret",    tahun: "2026", nominal: 180000, status: "Belum Bayar", tgl_bayar: "-"           },
 ];
 
 // ── Kategori Pemasukan ────────────────────────────────────────

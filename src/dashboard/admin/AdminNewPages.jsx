@@ -21,14 +21,11 @@ import {
   TAHUN_LIST,
 } from "../../data/index.js";
 
-// ── Helper export CSV ─────────────────────────────────────────
-const exportCSV = (filename, headers, rows) => {
-  const csv = [headers.join(","), ...rows.map(r => r.map(v => `"${v}"`).join(","))].join("\n");
-  const a   = Object.assign(document.createElement("a"), {
-    href: URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" })),
-    download: filename,
-  });
-  a.click();
+import { exportExcel, cetakSlipGajiPDF } from "../../utils/exportHelper.js";
+
+// ── Helper export Excel (wrapper sederhana) ───────────────────
+const exportToExcel = (filename, headers, rows, colWidths) => {
+  exportExcel(filename, [{ name: "Data", headers, rows, colWidths }]);
 };
 
 // ── Summary Box component ─────────────────────────────────────
@@ -73,7 +70,7 @@ export function SPPSiswa() {
   };
 
   const handleExport = () => {
-    exportCSV(`spp-${bulan}-${tahun}.csv`,
+    exportToExcel(`spp-${bulan}-${tahun}`,
       ["Nama Siswa", "Program", "Nominal", "Tgl Bayar", "Status"],
       filtered.map(s => [s.siswa_nama, s.program, s.nominal, s.tgl_bayar, s.status])
     );
@@ -194,7 +191,7 @@ export function Pemasukan() {
   };
 
   const handleExport = () => {
-    exportCSV(`pemasukan-${bulan}-${tahun}.csv`,
+    exportToExcel(`pemasukan-${bulan}-${tahun}`,
       ["Tanggal", "Keterangan", "Kategori", "Nominal"],
       filtered.map(d => [d.tanggal, d.keterangan, d.kategori, d.nominal])
     );
@@ -346,7 +343,7 @@ export function Pengeluaran() {
   };
 
   const handleExport = () => {
-    exportCSV(`pengeluaran-${bulan}-${tahun}.csv`,
+    exportToExcel(`pengeluaran-${bulan}-${tahun}`,
       ["Tanggal", "Keterangan", "Kategori", "Nominal"],
       filtered.map(d => [d.tanggal, d.keterangan, d.kategori, d.nominal])
     );
@@ -480,7 +477,7 @@ export function SaldoLaporan() {
   const totalSaldo  = totalMasuk - totalKeluar;
 
   const handleExport = () => {
-    exportCSV(`laporan-${tahun}.csv`,
+    exportToExcel(`laporan-${tahun}`,
       ["Bulan", "Total Pemasukan", "Total Pengeluaran", "Saldo"],
       bulanData.map(b => [b.bulan, b.masuk, b.keluar, b.saldo])
     );
@@ -560,65 +557,8 @@ const hitungTotal = (h) => {
   return totalMengajar + totalKomponen + totalTambahan;
 };
 
-// Cetak slip gaji
-const cetakSlip = (h) => {
-  const totalMengajar = (h.mengajar || []).reduce((a, b) => a + b.jumlah_siswa * b.honor_per_siswa, 0);
-  const totalKomponen = (h.komponen_tetap || []).reduce((a, b) => a + b.nominal, 0);
-  const totalTambahan = (h.honor_tambahan || []).reduce((a, b) => a + b.nominal, 0);
-  const totalGaji     = totalMengajar + totalKomponen + totalTambahan;
-
-  const fmt = (n) => "Rp " + n.toLocaleString("id-ID");
-  const line = "═".repeat(44);
-  const dash = "─".repeat(44);
-
-  let slip = `
-${line}
-         SLIP GAJI — ${h.bulan.toUpperCase()} ${h.tahun}
-                   BimbelKu
-${line}
- Nama    : ${h.guru_nama}
- Periode : ${h.bulan} ${h.tahun}
-${line}
- HONOR MENGAJAR
-${dash}`;
-
-  (h.mengajar || []).forEach(m => {
-    const sub = m.jumlah_siswa * m.honor_per_siswa;
-    slip += `\n ${m.program}`;
-    slip += `\n   ${m.jumlah_siswa} siswa × ${fmt(m.honor_per_siswa)} = ${fmt(sub)}`;
-  });
-
-  slip += `\n${dash}`;
-  slip += `\n Subtotal Mengajar        : ${fmt(totalMengajar)}`;
-
-  if ((h.komponen_tetap || []).length > 0) {
-    slip += `\n${line}\n KOMPONEN TETAP\n${dash}`;
-    (h.komponen_tetap || []).forEach(k => {
-      slip += `\n ${k.nama.padEnd(24)} : ${fmt(k.nominal)}`;
-    });
-  }
-
-  if ((h.honor_tambahan || []).length > 0) {
-    slip += `\n${line}\n HONOR TAMBAHAN\n${dash}`;
-    (h.honor_tambahan || []).forEach(t => {
-      slip += `\n ${t.nama.padEnd(24)} : ${fmt(t.nominal)}`;
-    });
-  }
-
-  slip += `\n${line}`;
-  slip += `\n TOTAL GAJI               : ${fmt(totalGaji)}`;
-  slip += `\n${line}`;
-  slip += `\n Status  : ${h.status === "Dibayar" ? "✓ Sudah Dibayar" : "Belum Dibayar"}`;
-  if (h.tgl_bayar !== "-") slip += `\n Tgl Bayar: ${h.tgl_bayar}`;
-  slip += `\n${line}\n`;
-
-  const blob = new Blob([slip.trim()], { type: "text/plain;charset=utf-8;" });
-  const a    = Object.assign(document.createElement("a"), {
-    href: URL.createObjectURL(blob),
-    download: `slip-gaji-${h.guru_nama.replace(/ /g, "-")}-${h.bulan}-${h.tahun}.txt`,
-  });
-  a.click();
-};
+// Cetak slip gaji — PDF profesional via exportHelper
+const cetakSlip = (h) => cetakSlipGajiPDF(h);
 
 export function HonorGuru() {
   const [bulan,    setBulan]    = useState("Maret");
@@ -659,7 +599,7 @@ export function HonorGuru() {
 
   // ── Export CSV ───────────────────────────────────────────────
   const handleExport = () => {
-    exportCSV(`honor-guru-${bulan}-${tahun}.csv`,
+    exportToExcel(`honor-guru-${bulan}-${tahun}`,
       ["Nama Guru", "Honor Mengajar", "Komponen Tetap", "Honor Tambahan", "Total Gaji", "Status", "Tgl Bayar"],
       filtered.map(h => {
         const m = (h.mengajar||[]).reduce((a,b)=>a+b.jumlah_siswa*b.honor_per_siswa,0);
@@ -1179,7 +1119,7 @@ export function RekapAbsensiAdmin() {
   });
 
   const handleExport = () => {
-    exportCSV(`absensi-${bulan}-${tahun}.csv`,
+    exportToExcel(`absensi-${bulan}-${tahun}`,
       ["Tanggal", "Nama Siswa", "Program", "Status", "Guru Pengisi", "Verified"],
       filtered.map(a => [a.tanggal, a.siswa_nama, a.program, a.status, a.guru_nama, a.verified ? "Ya" : "Belum"])
     );

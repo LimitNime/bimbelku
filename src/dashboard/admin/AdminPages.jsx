@@ -18,17 +18,11 @@ import {
   PENGELUARAN_DATA,
 } from "../../data/index.js";
 
-// ── Helper export CSV sederhana ───────────────────────────────
+import { exportExcel } from "../../utils/exportHelper.js";
+
+// ── Helper export Excel ───────────────────────────────────────
 const exportCSV = (filename, headers, rows) => {
-  const csvHeaders = headers.join(",");
-  const csvRows    = rows.map(r => r.map(v => `"${v}"`).join(",")).join("\n");
-  const blob = new Blob([csvHeaders + "\n" + csvRows], { type: "text/csv;charset=utf-8;" });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement("a");
-  a.href     = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+  exportExcel(filename.replace(".csv",""), [{ name: "Data", headers, rows }]);
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -73,7 +67,13 @@ export function AdminDashboard() {
                     <strong>{s.nama}</strong>
                     <div style={{ fontSize: ".75rem", color: "var(--muted)" }}>{s.sekolah}</div>
                   </td>
-                  <td><span className="badge blue">{s.program}</span></td>
+                  <td>
+                    <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
+                      {(s.programs || []).map((p, i) => (
+                        <span key={i} className="badge blue" style={{ fontSize: ".68rem" }}>{p.nama}</span>
+                      ))}
+                    </div>
+                  </td>
                   <td>
                     <span className={`badge ${s.status === "Aktif" ? "green" : s.status === "Cuti" ? "yellow" : "red"}`}>
                       {s.status}
@@ -114,42 +114,63 @@ export function AdminDashboard() {
 // 2. DATA SISWA
 // ─────────────────────────────────────────────────────────────
 export function ManajemenSiswa() {
-  const [data, setData]         = useState(STUDENTS_DATA);
-  const [search, setSearch]     = useState("");
-  const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId]     = useState(null);
+  const [data,      setData]      = useState(STUDENTS_DATA);
+  const [search,    setSearch]    = useState("");
+  const [showForm,  setShowForm]  = useState(false);
+  const [editId,    setEditId]    = useState(null);
   const [rincianId, setRincianId] = useState(null);
-  const [form, setForm] = useState({
+
+  const emptyForm = {
     nama: "", email: "", ttl: "", alamat: "", kontak: "",
-    sekolah: "", program: "Calistung", besaran_spp: 150000,
-    status: "Aktif", guru: "Drs. Budi Santoso",
-  });
+    sekolah: "", programs: [], status: "Aktif",
+  };
+  const [form, setForm] = useState(emptyForm);
 
   const filtered = data.filter(s =>
     s.nama.toLowerCase().includes(search.toLowerCase()) ||
-    s.sekolah.toLowerCase().includes(search.toLowerCase()) ||
-    s.program.toLowerCase().includes(search.toLowerCase())
+    (s.sekolah || "").toLowerCase().includes(search.toLowerCase()) ||
+    (s.programs || []).some(p => p.nama.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const resetForm = () => {
-    setForm({ nama: "", email: "", ttl: "", alamat: "", kontak: "", sekolah: "", program: "Calistung", besaran_spp: 150000, status: "Aktif", guru: "Drs. Budi Santoso" });
-    setEditId(null);
-    setShowForm(false);
-  };
+  const resetForm = () => { setForm(emptyForm); setEditId(null); setShowForm(false); };
 
   const handleEdit = (s) => {
-    setForm({ ...s });
+    setForm({ ...s, programs: s.programs ? [...s.programs] : [] });
     setEditId(s.id);
     setShowForm(true);
     setRincianId(null);
   };
 
+  // Toggle program di form
+  const toggleProgram = (namaProg) => {
+    const ada = form.programs.find(p => p.nama === namaProg);
+    if (ada) {
+      setForm({ ...form, programs: form.programs.filter(p => p.nama !== namaProg) });
+    } else {
+      setForm({ ...form, programs: [...form.programs, { nama: namaProg, spp: 0 }] });
+    }
+  };
+
+  // Update nominal SPP per program
+  const updateSpp = (namaProg, val) => {
+    setForm({
+      ...form,
+      programs: form.programs.map(p =>
+        p.nama === namaProg ? { ...p, spp: parseInt(val) || 0 } : p
+      ),
+    });
+  };
+
+  const totalSpp = form.programs.reduce((a, b) => a + (b.spp || 0), 0);
+
   const handleSave = () => {
     if (!form.nama || !form.email) return alert("Nama dan email wajib diisi!");
+    if (form.programs.length === 0) return alert("Pilih minimal 1 program!");
+    const saved = { ...form, total_spp: totalSpp, id: editId || Date.now() };
     if (editId) {
-      setData(data.map(s => s.id === editId ? { ...form, id: editId } : s));
+      setData(data.map(s => s.id === editId ? saved : s));
     } else {
-      setData([...data, { ...form, id: Date.now(), tgl_daftar: new Date().toISOString().split("T")[0] }]);
+      setData([...data, { ...saved, tgl_daftar: new Date().toISOString().split("T")[0] }]);
     }
     resetForm();
   };
@@ -160,14 +181,17 @@ export function ManajemenSiswa() {
 
   const handleExport = () => {
     exportCSV("data-siswa.csv",
-      ["Nama", "Email", "TTL", "Alamat", "Kontak", "Sekolah", "Program", "SPP", "Status", "Guru"],
-      filtered.map(s => [s.nama, s.email, s.ttl, s.alamat, s.kontak, s.sekolah, s.program, s.besaran_spp, s.status, s.guru])
+      ["Nama", "Email", "TTL", "Alamat", "Kontak", "Sekolah", "Program", "Total SPP", "Status"],
+      filtered.map(s => [
+        s.nama, s.email, s.ttl, s.alamat, s.kontak, s.sekolah,
+        (s.programs || []).map(p => p.nama).join("; "),
+        s.total_spp, s.status,
+      ])
     );
   };
 
-  // SPP rincian siswa
-  const rincianSPP = rincianId ? SPP_DATA.filter(s => s.siswa_id === rincianId) : [];
-  const siswaRincian = rincianId ? data.find(s => s.id === rincianId) : null;
+  const rincianSPP    = rincianId ? SPP_DATA.filter(s => s.siswa_id === rincianId) : [];
+  const siswaRincian  = rincianId ? data.find(s => s.id === rincianId) : null;
 
   return (
     <div className="fade-in">
@@ -179,7 +203,8 @@ export function ManajemenSiswa() {
           <button className="btn-outline" style={{ padding: "9px 14px", fontSize: ".82rem" }} onClick={handleExport}>
             📥 Export Excel
           </button>
-          <button className="btn-primary" style={{ padding: "9px 14px", fontSize: ".82rem" }} onClick={() => { resetForm(); setShowForm(!showForm); }}>
+          <button className="btn-primary" style={{ padding: "9px 14px", fontSize: ".82rem" }}
+            onClick={() => { resetForm(); setShowForm(!showForm); }}>
             <Icon name="plus" size={14} />Tambah Siswa
           </button>
         </div>
@@ -189,6 +214,8 @@ export function ManajemenSiswa() {
       {showForm && (
         <div className="content-card" style={{ marginBottom: 20 }}>
           <h3>{editId ? "Edit Siswa" : "Tambah Siswa Baru"}</h3>
+
+          {/* Identitas */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12, marginTop: 14 }}>
             {[
               { label: "Nama Lengkap *", key: "nama",    ph: "Nama lengkap siswa" },
@@ -205,38 +232,80 @@ export function ManajemenSiswa() {
               </div>
             ))}
             <div className="form-group">
-              <label className="form-label">Program</label>
-              <select className="form-input" value={form.program}
-                onChange={e => {
-                  const p = PROGRAMS.find(x => x.nama === e.target.value);
-                  setForm({ ...form, program: e.target.value, besaran_spp: p?.spp || 0 });
-                }}>
-                {PROGRAMS.map(p => <option key={p.id}>{p.nama}</option>)}
-              </select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Besaran SPP (Rp)</label>
-              <input className="form-input" type="number" value={form.besaran_spp}
-                onChange={e => setForm({ ...form, besaran_spp: parseInt(e.target.value) })} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Tentor</label>
-              <select className="form-input" value={form.guru} onChange={e => setForm({ ...form, guru: e.target.value })}>
-                {TEACHERS_DATA.map(g => <option key={g.id}>{g.nama}</option>)}
-              </select>
-            </div>
-            <div className="form-group">
               <label className="form-label">Status</label>
-              <select className="form-input" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
+              <select className="form-input" value={form.status}
+                onChange={e => setForm({ ...form, status: e.target.value })}>
                 {["Aktif", "Nonaktif", "Cuti"].map(s => <option key={s}>{s}</option>)}
               </select>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+
+          {/* Pilih Program + input SPP per program */}
+          <div style={{ marginTop: 16, borderTop: "1px solid var(--border)", paddingTop: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: ".88rem", marginBottom: 10 }}>
+              📚 Program yang Diikuti
+            </div>
+
+            {/* Toggle program */}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+              {PROGRAMS.map(p => {
+                const active = form.programs.find(x => x.nama === p.nama);
+                return (
+                  <button key={p.id} onClick={() => toggleProgram(p.nama)}
+                    style={{
+                      padding: "6px 14px", borderRadius: 100, border: "none",
+                      cursor: "pointer", fontFamily: "inherit", fontSize: ".8rem",
+                      fontWeight: 700, transition: ".15s",
+                      background: active ? "var(--blue)" : "#f1f5f9",
+                      color: active ? "#fff" : "var(--muted)",
+                    }}>
+                    {active ? "✓ " : "+ "}{p.nama}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Input SPP per program yang dipilih */}
+            {form.programs.length > 0 && (
+              <div style={{ background: "#f8fafc", borderRadius: 12, padding: "14px 16px" }}>
+                <div style={{ fontSize: ".78rem", color: "var(--muted)", marginBottom: 10 }}>
+                  Input nominal SPP per program (bebas, bisa beda tiap siswa):
+                </div>
+                {form.programs.map((p, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                    <span style={{ minWidth: 160, fontSize: ".85rem", fontWeight: 600 }}>{p.nama}</span>
+                    <span style={{ fontSize: ".82rem", color: "var(--muted)" }}>Rp</span>
+                    <input
+                      type="number" min="0"
+                      className="form-input"
+                      style={{ maxWidth: 160 }}
+                      value={p.spp}
+                      placeholder="0"
+                      onChange={e => updateSpp(p.nama, e.target.value)}
+                    />
+                  </div>
+                ))}
+                <div style={{
+                  display: "flex", justifyContent: "space-between",
+                  padding: "10px 0 0", borderTop: "1px solid var(--border)",
+                  fontWeight: 700, fontSize: ".92rem",
+                }}>
+                  <span>Total SPP/bulan</span>
+                  <span style={{ color: "var(--blue)" }}>
+                    Rp {totalSpp.toLocaleString("id-ID")}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
             <button className="btn-primary" style={{ padding: "10px 18px", fontSize: ".85rem" }} onClick={handleSave}>
               💾 {editId ? "Update" : "Simpan"}
             </button>
-            <button className="btn-outline" style={{ padding: "10px 18px", fontSize: ".85rem" }} onClick={resetForm}>Batal</button>
+            <button className="btn-outline" style={{ padding: "10px 18px", fontSize: ".85rem" }} onClick={resetForm}>
+              Batal
+            </button>
           </div>
         </div>
       )}
@@ -255,15 +324,16 @@ export function ManajemenSiswa() {
             <div style={{ overflowX: "auto" }}>
               <table>
                 <thead>
-                  <tr><th>Bulan</th><th>Tahun</th><th>Nominal</th><th>Tgl Bayar</th><th>Status</th></tr>
+                  <tr><th>Bulan</th><th>Tahun</th><th>Program</th><th>Nominal</th><th>Tgl Bayar</th><th>Status</th></tr>
                 </thead>
                 <tbody>
                   {rincianSPP.length === 0 ? (
-                    <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--muted)" }}>Belum ada data SPP</td></tr>
+                    <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--muted)" }}>Belum ada data SPP</td></tr>
                   ) : rincianSPP.map((s, i) => (
                     <tr key={i}>
                       <td>{s.bulan}</td>
                       <td>{s.tahun}</td>
+                      <td><span className="badge blue" style={{ fontSize: ".72rem" }}>{s.program}</span></td>
                       <td style={{ fontWeight: 600 }}>Rp {s.nominal.toLocaleString("id-ID")}</td>
                       <td style={{ fontSize: ".82rem", color: "var(--muted)" }}>{s.tgl_bayar}</td>
                       <td><span className={`badge ${s.status === "Lunas" ? "green" : "red"}`}>{s.status}</span></td>
@@ -283,8 +353,13 @@ export function ManajemenSiswa() {
           <table>
             <thead>
               <tr>
-                <th>Nama</th><th>TTL</th><th>Sekolah</th><th>Program</th>
-                <th>SPP</th><th>Tentor</th><th>Status</th><th>Aksi</th>
+                <th style={{ minWidth: 160 }}>Nama</th>
+                <th style={{ minWidth: 140 }}>TTL</th>
+                <th style={{ minWidth: 130 }}>Sekolah</th>
+                <th style={{ minWidth: 180 }}>Program</th>
+                <th style={{ minWidth: 130 }}>Total SPP</th>
+                <th style={{ minWidth: 90 }}>Status</th>
+                <th style={{ minWidth: 100 }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -297,11 +372,16 @@ export function ManajemenSiswa() {
                   </td>
                   <td style={{ fontSize: ".8rem" }}>{s.ttl}</td>
                   <td style={{ fontSize: ".82rem" }}>{s.sekolah}</td>
-                  <td><span className="badge blue">{s.program}</span></td>
-                  <td style={{ fontSize: ".82rem", fontWeight: 600 }}>
-                    Rp {s.besaran_spp.toLocaleString("id-ID")}
+                  <td>
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                      {(s.programs || []).map((p, i) => (
+                        <span key={i} className="badge blue" style={{ fontSize: ".7rem" }}>{p.nama}</span>
+                      ))}
+                    </div>
                   </td>
-                  <td style={{ fontSize: ".82rem" }}>{s.guru}</td>
+                  <td style={{ fontWeight: 700, color: "var(--blue)", whiteSpace: "nowrap" }}>
+                    Rp {(s.total_spp || 0).toLocaleString("id-ID")}
+                  </td>
                   <td>
                     <span className={`badge ${s.status === "Aktif" ? "green" : s.status === "Cuti" ? "yellow" : "red"}`}>
                       {s.status}
@@ -309,7 +389,9 @@ export function ManajemenSiswa() {
                   </td>
                   <td>
                     <div className="action-btns">
-                      <button className="icon-btn edit" onClick={() => handleEdit(s)} title="Edit"><Icon name="edit" size={13} /></button>
+                      <button className="icon-btn edit" onClick={() => handleEdit(s)} title="Edit">
+                        <Icon name="edit" size={13} />
+                      </button>
                       <button onClick={() => { setRincianId(s.id); setShowForm(false); }}
                         style={{ padding: "4px 8px", borderRadius: 7, border: "none", background: "#dcfce7", color: "#16a34a", cursor: "pointer", fontSize: ".72rem", fontWeight: 700 }}>
                         SPP
@@ -338,23 +420,18 @@ export function ManajemenGuru() {
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId]     = useState(null);
   const [honorSettingLocal, setHonorSettingLocal] = useState(HONOR_SETTING);
-  const [form, setForm] = useState({
-    nama: "", email: "", kontak: "", status: "Aktif",
-  });
+  const emptyForm = { nama: "", ttl: "", alamat: "", email: "", kontak: "", status: "Aktif" };
+  const [form, setForm] = useState(emptyForm);
 
   const filtered = data.filter(g =>
     g.nama.toLowerCase().includes(search.toLowerCase()) ||
     g.email.toLowerCase().includes(search.toLowerCase())
   );
 
-  const resetForm = () => {
-    setForm({ nama: "", email: "", kontak: "", status: "Aktif" });
-    setEditId(null);
-    setShowForm(false);
-  };
+  const resetForm = () => { setForm(emptyForm); setEditId(null); setShowForm(false); };
 
   const handleEdit = (g) => {
-    setForm({ nama: g.nama, email: g.email, kontak: g.kontak, status: g.status });
+    setForm({ nama: g.nama, ttl: g.ttl || "", alamat: g.alamat || "", email: g.email, kontak: g.kontak, status: g.status });
     setEditId(g.id);
     setShowForm(true);
   };
@@ -371,12 +448,8 @@ export function ManajemenGuru() {
 
   const handleExport = () => {
     exportCSV("data-guru.csv",
-      ["Nama", "Email", "Kontak", "Program", "Jml Siswa", "Status"],
-      filtered.map(g => {
-        const programs = HONOR_SETTING.filter(h => h.guru_id === g.id).map(h => h.program).join("; ");
-        const jmlSiswa = STUDENTS_DATA.filter(s => s.guru === g.nama).length;
-        return [g.nama, g.email, g.kontak, programs, jmlSiswa, g.status];
-      })
+      ["Nama", "TTL", "Alamat", "Email", "No HP", "Status"],
+      filtered.map(g => [g.nama, g.ttl || "-", g.alamat || "-", g.email, g.kontak, g.status])
     );
   };
 
@@ -396,15 +469,17 @@ export function ManajemenGuru() {
         </div>
       </div>
 
-      {/* Form */}
+      {/* Form — identitas guru saja */}
       {showForm && (
         <div className="content-card" style={{ marginBottom: 20 }}>
-          <h3>{editId ? "Edit Guru" : "Tambah Guru Baru"}</h3>
+          <h3>{editId ? "Edit Data Guru" : "Tambah Guru Baru"}</h3>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12, marginTop: 14 }}>
             {[
               { label: "Nama Lengkap *", key: "nama",   ph: "Nama lengkap guru" },
+              { label: "TTL",            key: "ttl",    ph: "Kota, DD MMM YYYY" },
+              { label: "Alamat",         key: "alamat", ph: "Alamat lengkap" },
               { label: "Email *",        key: "email",  ph: "email@bimbelku.com", type: "email" },
-              { label: "No. Telepon",    key: "kontak", ph: "08xxxxxxxxxx" },
+              { label: "No. HP",         key: "kontak", ph: "08xxxxxxxxxx" },
             ].map(f => (
               <div key={f.key} className="form-group">
                 <label className="form-label">{f.label}</label>
@@ -420,44 +495,37 @@ export function ManajemenGuru() {
             </div>
           </div>
 
-          {/* Program yang diajar — tambah/kurang */}
+          {/* Program yang diajar */}
           {editId && (
             <div style={{ marginTop: 16, borderTop: "1px solid var(--border)", paddingTop: 16 }}>
               <div style={{ fontWeight: 700, fontSize: ".88rem", marginBottom: 10 }}>
                 📚 Program yang Diajar
               </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
                 {PROGRAMS.map(p => {
-                  const sudahAda = HONOR_SETTING.find(h => h.guru_id === editId && h.program === p.nama);
+                  const sudahAda = honorSettingLocal.find(h => h.guru_id === editId && h.program === p.nama);
                   return (
-                    <button key={p.id}
-                      onClick={() => {
-                        if (sudahAda) {
-                          setHonorSettingLocal(prev => prev.filter(h => !(h.guru_id === editId && h.program === p.nama)));
-                        } else {
-                          setHonorSettingLocal(prev => [...prev, {
-                            id: Date.now() + p.id,
-                            guru_id: editId,
-                            guru_nama: form.nama,
-                            program: p.nama,
-                            honor_per_siswa: 0,
-                          }]);
-                        }
-                      }}
-                      style={{
-                        padding: "6px 14px", borderRadius: 100, border: "none",
-                        cursor: "pointer", fontFamily: "inherit", fontSize: ".78rem",
-                        fontWeight: 700, transition: ".15s",
-                        background: sudahAda ? "var(--blue)" : "#f1f5f9",
-                        color: sudahAda ? "#fff" : "var(--muted)",
-                      }}>
+                    <button key={p.id} onClick={() => {
+                      if (sudahAda) {
+                        setHonorSettingLocal(prev => prev.filter(h => !(h.guru_id === editId && h.program === p.nama)));
+                      } else {
+                        setHonorSettingLocal(prev => [...prev, { id: Date.now() + p.id, guru_id: editId, guru_nama: form.nama, program: p.nama, honor_per_siswa: 0 }]);
+                      }
+                    }}
+                    style={{
+                      padding: "6px 14px", borderRadius: 100, border: "none",
+                      cursor: "pointer", fontFamily: "inherit", fontSize: ".78rem",
+                      fontWeight: 700, transition: ".15s",
+                      background: sudahAda ? "var(--blue)" : "#f1f5f9",
+                      color: sudahAda ? "#fff" : "var(--muted)",
+                    }}>
                       {sudahAda ? "✓ " : "+ "}{p.nama}
                     </button>
                   );
                 })}
               </div>
               <p style={{ fontSize: ".75rem", color: "var(--muted)" }}>
-                Klik program untuk tambah/hapus. Nominal honor per siswa bisa diatur di menu <strong>Setting Honor Guru</strong>.
+                Nominal honor/siswa diatur di menu <strong>Setting Honor Guru</strong>.
               </p>
             </div>
           )}
@@ -471,48 +539,40 @@ export function ManajemenGuru() {
         </div>
       )}
 
-      {/* Tabel */}
+      {/* Tabel — identitas saja */}
       <div className="table-card">
         <div className="table-head"><h3>Daftar Guru / Tentor ({filtered.length})</h3></div>
         <div style={{ overflowX: "auto" }}>
           <table>
             <thead>
-              <tr><th>Nama</th><th>Kontak</th><th>Program</th><th>Jml Siswa</th><th>Status</th><th>Aksi</th></tr>
+              <tr>
+                <th style={{ minWidth: 160 }}>Nama</th>
+                <th style={{ minWidth: 150 }}>TTL</th>
+                <th style={{ minWidth: 180 }}>Alamat</th>
+                <th style={{ minWidth: 130 }}>No. HP</th>
+                <th style={{ minWidth: 90 }}>Status</th>
+                <th style={{ minWidth: 80 }}>Aksi</th>
+              </tr>
             </thead>
             <tbody>
-              {filtered.map(g => {
-                const jmlSiswa  = STUDENTS_DATA.filter(s => s.guru === g.nama).length;
-                const programs  = honorSettingLocal.filter(h => h.guru_id === g.id);
-                return (
-                  <tr key={g.id}>
-                    <td>
-                      <strong>{g.nama}</strong>
-                      <div style={{ fontSize: ".72rem", color: "var(--muted)" }}>{g.email}</div>
-                    </td>
-                    <td style={{ fontSize: ".82rem" }}>{g.kontak}</td>
-                    <td>
-                      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                        {programs.length > 0
-                          ? programs.map((h, i) => (
-                              <span key={i} className="badge blue" style={{ fontSize: ".7rem" }}>
-                                {h.program}
-                              </span>
-                            ))
-                          : <span style={{ fontSize: ".78rem", color: "var(--muted)" }}>Belum ada</span>
-                        }
-                      </div>
-                    </td>
-                    <td><span className="badge blue">{jmlSiswa} siswa</span></td>
-                    <td><span className={`badge ${g.status === "Aktif" ? "green" : "red"}`}>{g.status}</span></td>
-                    <td>
-                      <div className="action-btns">
-                        <button className="icon-btn edit" onClick={() => handleEdit(g)}><Icon name="edit" size={13} /></button>
-                        <button className="icon-btn del" onClick={() => setData(data.filter(d => d.id !== g.id))}><Icon name="trash" size={13} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {filtered.map(g => (
+                <tr key={g.id}>
+                  <td>
+                    <strong>{g.nama}</strong>
+                    <div style={{ fontSize: ".72rem", color: "var(--muted)" }}>{g.email}</div>
+                  </td>
+                  <td style={{ fontSize: ".82rem" }}>{g.ttl || "-"}</td>
+                  <td style={{ fontSize: ".82rem" }}>{g.alamat || "-"}</td>
+                  <td style={{ fontSize: ".82rem" }}>{g.kontak}</td>
+                  <td><span className={`badge ${g.status === "Aktif" ? "green" : "red"}`}>{g.status}</span></td>
+                  <td>
+                    <div className="action-btns">
+                      <button className="icon-btn edit" onClick={() => handleEdit(g)}><Icon name="edit" size={13} /></button>
+                      <button className="icon-btn del" onClick={() => setData(data.filter(d => d.id !== g.id))}><Icon name="trash" size={13} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -520,7 +580,6 @@ export function ManajemenGuru() {
     </div>
   );
 }
-
 // ─────────────────────────────────────────────────────────────
 // 4. MANAJEMEN ARTIKEL
 // ─────────────────────────────────────────────────────────────
@@ -1069,16 +1128,11 @@ export function ManajemenProgram() {
     if (!form.nama) return alert("Nama program wajib diisi!");
     if (editId) {
       setData(data.map(p => p.id === editId
-        ? { ...p, nama: form.nama, jenjang: form.jenjang, spp: parseInt(form.spp) || 0 }
+        ? { ...p, nama: form.nama, jenjang: form.jenjang }
         : p
       ));
     } else {
-      setData([...data, {
-        id: Date.now(),
-        nama: form.nama,
-        jenjang: form.jenjang,
-        spp: parseInt(form.spp) || 0,
-      }]);
+      setData([...data, { id: Date.now(), nama: form.nama, jenjang: form.jenjang }]);
     }
     resetForm();
   };
@@ -1113,14 +1167,11 @@ export function ManajemenProgram() {
                 onChange={e => setForm({ ...form, jenjang: e.target.value })}
                 placeholder="cth: SMP / SD / Semua" />
             </div>
-            <div className="form-group">
-              <label className="form-label">Biaya SPP (Rp)</label>
-              <input className="form-input" type="number" min="0" value={form.spp}
-                onChange={e => setForm({ ...form, spp: e.target.value })}
-                placeholder="0" />
-            </div>
           </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+          <div className="info-box" style={{ marginTop: 10 }}>
+            💡 Biaya SPP tidak diisi di sini — nominal SPP diinput per siswa karena bisa berbeda tiap siswa.
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
             <button className="btn-primary" style={{ padding: "10px 18px", fontSize: ".85rem" }}
               onClick={handleSave}>
               💾 {editId ? "Update" : "Simpan"}
@@ -1142,24 +1193,21 @@ export function ManajemenProgram() {
               <tr>
                 <th>Nama Program</th>
                 <th>Jenjang</th>
-                <th>Biaya SPP</th>
                 <th>Dipakai (Siswa)</th>
                 <th>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map(p => {
-                const jmlSiswa = STUDENTS_DATA.filter(s => s.program === p.nama).length;
+                // Hitung dari programs array siswa
+                const jmlSiswa = STUDENTS_DATA.filter(s =>
+                  (s.programs || []).some(pr => pr.nama === p.nama)
+                ).length;
                 return (
                   <tr key={p.id}>
                     <td><strong>{p.nama}</strong></td>
                     <td style={{ fontSize: ".82rem", color: "var(--muted)" }}>{p.jenjang}</td>
-                    <td style={{ fontWeight: 600, color: "var(--blue)" }}>
-                      Rp {p.spp.toLocaleString("id-ID")}
-                    </td>
-                    <td>
-                      <span className="badge blue">{jmlSiswa} siswa</span>
-                    </td>
+                    <td><span className="badge blue">{jmlSiswa} siswa</span></td>
                     <td>
                       <div className="action-btns">
                         <button className="icon-btn edit" onClick={() => handleEdit(p)}>
@@ -1167,7 +1215,7 @@ export function ManajemenProgram() {
                         </button>
                         <button className="icon-btn del"
                           onClick={() => {
-                            if (jmlSiswa > 0) return alert(`Program "${p.nama}" masih dipakai ${jmlSiswa} siswa. Pindahkan siswa dulu sebelum menghapus.`);
+                            if (jmlSiswa > 0) return alert(`Program "${p.nama}" masih dipakai ${jmlSiswa} siswa.`);
                             setData(data.filter(x => x.id !== p.id));
                           }}>
                           <Icon name="trash" size={13} />
@@ -1180,10 +1228,9 @@ export function ManajemenProgram() {
             </tbody>
           </table>
         </div>
-        {/* Info */}
         <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border)" }}>
           <div className="info-box">
-            💡 Program yang ditambahkan di sini akan otomatis tersedia di menu <strong>Data Siswa</strong> dan <strong>Setting Honor Guru</strong>.
+            💡 Program yang ditambahkan di sini otomatis tersedia di <strong>Data Siswa</strong> dan <strong>Setting Honor Guru</strong>.
           </div>
         </div>
       </div>

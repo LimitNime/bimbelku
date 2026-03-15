@@ -6,6 +6,7 @@ import { useState } from "react";
 import StatCard     from "../../components/StatCard.jsx";
 import ArticleCard  from "../../components/ArticleCard.jsx";
 import Icon         from "../../components/Icon.jsx";
+import { cetakKwitansiPDF } from "../../utils/exportHelper.js";
 import {
   STUDENTS_DATA,
   ABSENSI_DATA,
@@ -32,10 +33,10 @@ export function SiswaDashboard({ onMenu }) {
     <div className="fade-in">
       {/* Stats */}
       <div className="stats-grid">
-        <StatCard icon="📚" label="Program"       value={MY_SISWA?.program || "-"}   bgColor="#dbeafe" textColor="#2563eb" />
-        <StatCard icon="✅" label="Total Hadir"    value={totalHadir}                 bgColor="#dcfce7" textColor="#16a34a" />
-        <StatCard icon="💰" label="SPP Belum Bayar"value={belumBayar + " bulan"}      bgColor={belumBayar > 0 ? "#fee2e2" : "#dcfce7"} textColor={belumBayar > 0 ? "#dc2626" : "#16a34a"} />
-        <StatCard icon="👨‍🏫" label="Tentor"        value={MY_SISWA?.guru || "-"}      bgColor="#f3e8ff" textColor="#7c3aed" />
+        <StatCard icon="📚" label="Program Diikuti"  value={(MY_SISWA?.programs || []).length + " program"} bgColor="#dbeafe" textColor="#2563eb" />
+        <StatCard icon="✅" label="Total Hadir"       value={totalHadir}                                    bgColor="#dcfce7" textColor="#16a34a" />
+        <StatCard icon="💰" label="SPP Belum Bayar"  value={belumBayar + " tagihan"}                       bgColor={belumBayar > 0 ? "#fee2e2" : "#dcfce7"} textColor={belumBayar > 0 ? "#dc2626" : "#16a34a"} />
+        <StatCard icon="🏫" label="Total SPP/Bln"    value={"Rp " + (MY_SISWA?.total_spp || 0).toLocaleString("id-ID")} bgColor="#f3e8ff" textColor="#7c3aed" />
       </div>
 
       {/* Notif SPP jika ada yang belum bayar */}
@@ -69,9 +70,7 @@ export function SiswaDashboard({ onMenu }) {
           {[
             { label: "Nama",     val: MY_SISWA?.nama    },
             { label: "Sekolah",  val: MY_SISWA?.sekolah },
-            { label: "Program",  val: MY_SISWA?.program },
-            { label: "Tentor",   val: MY_SISWA?.guru    },
-            { label: "SPP/Bln",  val: "Rp " + (MY_SISWA?.besaran_spp || 0).toLocaleString("id-ID") },
+            { label: "Total SPP/Bln", val: "Rp " + (MY_SISWA?.total_spp || 0).toLocaleString("id-ID") },
             { label: "Status",   val: MY_SISWA?.status  },
           ].map((item, i) => (
             <div key={i} style={{
@@ -83,6 +82,24 @@ export function SiswaDashboard({ onMenu }) {
               <strong>{item.val}</strong>
             </div>
           ))}
+
+          {/* Program yang diikuti */}
+          {(MY_SISWA?.programs || []).length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontSize: ".75rem", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 8 }}>
+                Program & SPP
+              </div>
+              {(MY_SISWA.programs || []).map((p, i) => (
+                <div key={i} style={{
+                  display: "flex", justifyContent: "space-between",
+                  padding: "6px 0", borderBottom: "1px solid #f1f5f9", fontSize: ".83rem",
+                }}>
+                  <span className="badge blue" style={{ fontSize: ".72rem" }}>{p.nama}</span>
+                  <span style={{ fontWeight: 600, color: "var(--blue)" }}>Rp {(p.spp || 0).toLocaleString("id-ID")}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Artikel terbaru */}
@@ -195,28 +212,8 @@ export function PembayaranSiswa() {
   const belum     = mySPP.filter(s => s.status === "Belum Bayar").length;
   const totalBayar= mySPP.filter(s => s.status === "Lunas").reduce((a, b) => a + b.nominal, 0);
 
-  // Cetak kwitansi sederhana
-  const cetakKwitansi = (spp) => {
-    const isi = `
-KWITANSI PEMBAYARAN SPP
-=======================
-Nama Siswa : ${MY_SISWA?.nama}
-Program    : ${spp.program}
-Bulan      : ${spp.bulan} ${spp.tahun}
-Nominal    : Rp ${spp.nominal.toLocaleString("id-ID")}
-Tgl Bayar  : ${spp.tgl_bayar}
-Status     : ${spp.status}
-=======================
-BimbelKu — Terima kasih!
-    `.trim();
-    const blob = new Blob([isi], { type: "text/plain" });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href     = url;
-    a.download = `kwitansi-spp-${spp.bulan}-${spp.tahun}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  // Cetak kwitansi PDF profesional
+  const cetakKwitansi = (spp) => cetakKwitansiPDF(spp, MY_SISWA);
 
   return (
     <div className="fade-in">
@@ -335,8 +332,7 @@ export function ProfilSiswa({ user }) {
               { label: "TTL",        val: form.ttl          },
               { label: "Alamat",     val: form.alamat       },
               { label: "Sekolah",    val: form.sekolah      },
-              { label: "Program",    val: MY_SISWA?.program },
-              { label: "Tentor",     val: MY_SISWA?.guru    },
+              { label: "Program",    val: (MY_SISWA?.programs || []).map(p => p.nama).join(", ") },
               { label: "Status",     val: MY_SISWA?.status  },
             ].map((f, i) => (
               <div key={i} className="profile-field">

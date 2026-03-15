@@ -59,11 +59,18 @@ import { DashArticleDetail } from "./dashboard/SharedDashPages.jsx";
 // ─────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [page,        setPage]        = useState("home");
-  const [user,        setUser]        = useState(null);
-  const [dashMenu,    setDashMenu]    = useState("dashboard");
-  const [articleView, setArticleView] = useState(null);
-  const [prevMenu,    setPrevMenu]    = useState("dashboard");
+  const [page,         setPage]         = useState("home");
+  const [user,         setUser]         = useState(null);
+  const [dashMenu,     setDashMenu]     = useState("dashboard");
+  const [articleView,  setArticleView]  = useState(null);
+  const [prevMenu,     setPrevMenu]     = useState("dashboard");
+  // Absensi yang disimpan guru — shared antara InputAbsensi & RekapAbsensi
+  const [savedAbsensi, setSavedAbsensi] = useState([]);
+
+  const handleSavedAbsensi = (newRows) => {
+    setSavedAbsensi(prev => [...prev, ...newRows]);
+    setDashMenu("rekap-absensi"); // otomatis pindah ke rekap
+  };
 
   // ── Navigation ───────────────────────────────────────────
   const navigate = (p, data = null) => {
@@ -128,9 +135,8 @@ export default function App() {
     if (user.role === "Guru") {
       switch (dashMenu) {
         case "dashboard":     return <GuruDashboard onMenu={setDashMenu} />;
-        case "daftar-siswa":  return <DaftarSiswaGuru />;
-        case "input-absensi": return <InputAbsensi />;
-        case "rekap-absensi": return <RekapAbsensi />;
+        case "input-absensi": return <InputAbsensi onSaved={handleSavedAbsensi} />;
+        case "rekap-absensi": return <RekapAbsensi savedAbsensi={savedAbsensi} />;
         case "honor-guru":    return <HonorGuruPage />;
         case "profil-guru":   return <ProfilGuru user={user} />;
         default: break;

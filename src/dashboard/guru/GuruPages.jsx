@@ -19,8 +19,13 @@ import {
 const MY_GURU_ID = 1;
 const MY_GURU    = TEACHERS_DATA.find(g => g.id === MY_GURU_ID);
 
-// Siswa yang diajar guru ini
-const MY_SISWA   = STUDENTS_DATA.filter(s => s.guru === MY_GURU?.nama);
+// Siswa yang pernah diajar guru ini (dari absensi)
+// Karena guru tidak lagi punya relasi langsung di STUDENTS_DATA
+const siswaPernahDiajar = () => {
+  const ids = new Set(ABSENSI_DATA.filter(a => a.guru_id === MY_GURU_ID).map(a => a.siswa_id));
+  return STUDENTS_DATA.filter(s => ids.has(s.id));
+};
+const MY_SISWA = siswaPernahDiajar();
 
 // ── Helper format tanggal ─────────────────────────────────────
 const fmtTgl = (iso) => new Date(iso).toLocaleDateString("id-ID", {
@@ -34,75 +39,46 @@ const fmtTglShort = (iso) => new Date(iso).toLocaleDateString("id-ID", {
 // 1. DASHBOARD GURU
 // ─────────────────────────────────────────────────────────────
 export function GuruDashboard({ onMenu }) {
-  const absensiHariIni = ABSENSI_DATA.filter(a => a.guru_id === MY_GURU_ID);
-  const totalHadir     = absensiHariIni.filter(a => a.status === "Hadir").length;
-  const myHonor        = HONOR_DATA.find(h => h.guru_id === MY_GURU_ID);
-  const totalHonor     = myHonor?.mengajar?.reduce((a,b) => a + b.jumlah_siswa * b.honor_per_siswa, 0) || 0;
+  const myHonor    = HONOR_DATA.find(h => h.guru_id === MY_GURU_ID);
+  const totalHonor = myHonor?.mengajar?.reduce((a,b) => a + b.jumlah_siswa * b.honor_per_siswa, 0) || 0;
+
+  // Absensi bulan ini
+  const absBulanIni = ABSENSI_DATA.filter(a => {
+    const d = new Date(a.tanggal);
+    return a.guru_id === MY_GURU_ID &&
+      d.getMonth() === new Date().getMonth() &&
+      d.getFullYear() === new Date().getFullYear();
+  });
+  const totalHadir = absBulanIni.filter(a => a.status === "Hadir").length;
 
   return (
     <div className="fade-in">
-      {/* Stats */}
+      {/* Stats — hanya 2 kartu relevan */}
       <div className="stats-grid">
-        <StatCard icon="👨‍🎓" label="Total Siswa Diajar" value={MY_SISWA.length}         bgColor="#dbeafe" textColor="#2563eb" />
-        <StatCard icon="📋" label="Program Diajar"      value={HONOR_SETTING.filter(s => s.guru_id === MY_GURU_ID).length} bgColor="#dcfce7" textColor="#16a34a" />
-        <StatCard icon="✅" label="Hadir Bulan Ini"     value={totalHadir}                bgColor="#fef9c3" textColor="#d97706" />
-        <StatCard icon="💰" label="Estimasi Honor"      value={"Rp " + totalHonor.toLocaleString("id-ID")} bgColor="#f3e8ff" textColor="#7c3aed" />
+        <StatCard icon="✅" label="Hadir Bulan Ini"  value={totalHadir}                                    bgColor="#dcfce7" textColor="#16a34a" />
+        <StatCard icon="💰" label="Estimasi Honor"   value={"Rp " + totalHonor.toLocaleString("id-ID")}   bgColor="#f3e8ff" textColor="#7c3aed" />
       </div>
 
-      <div className="content-grid-2">
-        {/* Daftar siswa */}
-        <div className="content-card">
-          <h3 style={{ marginBottom: 14 }}>👥 Siswa Saya</h3>
-          {MY_SISWA.length === 0 ? (
-            <p style={{ color: "var(--muted)", fontSize: ".85rem" }}>Belum ada siswa.</p>
-          ) : (
-            MY_SISWA.map((s, i) => (
-              <div key={i} style={{
-                display: "flex", justifyContent: "space-between",
-                alignItems: "center", padding: "10px 0",
-                borderBottom: "1px solid #f1f5f9",
-              }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: ".88rem" }}>{s.nama}</div>
-                  <div style={{ fontSize: ".75rem", color: "var(--muted)" }}>{s.program} · {s.sekolah}</div>
-                </div>
-                <span className={`badge ${s.status === "Aktif" ? "green" : s.status === "Cuti" ? "yellow" : "red"}`}>
-                  {s.status}
-                </span>
-              </div>
-            ))
-          )}
-          <button className="btn-primary" style={{ width: "100%", justifyContent: "center", marginTop: 14, padding: "9px", fontSize: ".82rem" }} onClick={() => onMenu("input-absensi")}>
-            ✍️ Input Absensi Hari Ini
-          </button>
-        </div>
+      {/* Shortcut */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+        <button className="btn-primary" style={{ padding: "16px", fontSize: ".88rem", justifyContent: "center", borderRadius: 14 }}
+          onClick={() => onMenu("input-absensi")}>
+          ✍️ Input Absensi
+        </button>
+        <button className="btn-outline" style={{ padding: "16px", fontSize: ".88rem", justifyContent: "center", borderRadius: 14 }}
+          onClick={() => onMenu("rekap-absensi")}>
+          📋 Rekap Absensi
+        </button>
+      </div>
 
-        {/* Program & honor */}
-        <div className="content-card">
-          <h3 style={{ marginBottom: 14 }}>📊 Program yang Diajar</h3>
-          {HONOR_SETTING.filter(s => s.guru_id === MY_GURU_ID).map((s, i) => {
-            const p = s.program;
-            const jml = STUDENTS_DATA.filter(s => s.program === p && s.guru === MY_GURU.nama).length;
-            return (
-              <div key={i} style={{
-                display: "flex", justifyContent: "space-between",
-                alignItems: "center", padding: "10px 0",
-                borderBottom: "1px solid #f1f5f9",
-              }}>
-                <span style={{ fontSize: ".88rem", fontWeight: 500 }}>{p}</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span className="badge blue">{jml} siswa</span>
-                </div>
-              </div>
-            );
-          })}
-          <div style={{ marginTop: 14, background: "#f0fdf4", borderRadius: 10, padding: "12px 14px" }}>
-            <div style={{ fontSize: ".75rem", color: "var(--muted)" }}>Total Gaji Estimasi</div>
-            <div style={{ fontWeight: 700, color: "var(--green)", fontSize: ".95rem" }}>
-              Rp {totalHonor.toLocaleString("id-ID")}
-            </div>
-          </div>
-        </div>
+      {/* Artikel / info terbaru */}
+      <div className="content-card">
+        <h3 style={{ marginBottom: 14 }}>💡 Info</h3>
+        <p style={{ fontSize: ".85rem", color: "var(--muted)", lineHeight: 1.7 }}>
+          Selamat datang, <strong>{MY_GURU?.nama}</strong>!<br />
+          Gunakan menu <strong>Input Absensi</strong> untuk mengisi daftar hadir siswa.<br />
+          Lihat honor kamu di menu <strong>Honor Saya</strong>.
+        </p>
       </div>
     </div>
   );
@@ -115,7 +91,7 @@ export function DaftarSiswaGuru() {
   const [search, setSearch] = useState("");
   const filtered = MY_SISWA.filter(s =>
     s.nama.toLowerCase().includes(search.toLowerCase()) ||
-    s.program.toLowerCase().includes(search.toLowerCase())
+    (s.programs || []).some(p => p.nama.toLowerCase().includes(search.toLowerCase()))
   );
 
   return (
@@ -132,7 +108,7 @@ export function DaftarSiswaGuru() {
         <div style={{ overflowX: "auto" }}>
           <table>
             <thead>
-              <tr><th>Nama</th><th>Sekolah</th><th>Program</th><th>SPP</th><th>Status</th></tr>
+              <tr><th>Nama</th><th>Sekolah</th><th>Program</th><th>Total SPP</th><th>Status</th></tr>
             </thead>
             <tbody>
               {filtered.map(s => (
@@ -142,9 +118,15 @@ export function DaftarSiswaGuru() {
                     <div style={{ fontSize: ".75rem", color: "var(--muted)" }}>{s.kontak}</div>
                   </td>
                   <td style={{ fontSize: ".82rem" }}>{s.sekolah}</td>
-                  <td><span className="badge blue">{s.program}</span></td>
+                  <td>
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                      {(s.programs || []).map((p, i) => (
+                        <span key={i} className="badge blue" style={{ fontSize: ".7rem" }}>{p.nama}</span>
+                      ))}
+                    </div>
+                  </td>
                   <td style={{ fontSize: ".82rem", fontWeight: 600 }}>
-                    Rp {s.besaran_spp.toLocaleString("id-ID")}
+                    Rp {(s.total_spp || 0).toLocaleString("id-ID")}
                   </td>
                   <td>
                     <span className={`badge ${s.status === "Aktif" ? "green" : s.status === "Cuti" ? "yellow" : "red"}`}>
@@ -164,46 +146,70 @@ export function DaftarSiswaGuru() {
 // ─────────────────────────────────────────────────────────────
 // 3. INPUT ABSENSI
 // ─────────────────────────────────────────────────────────────
-export function InputAbsensi() {
-  const today    = new Date().toISOString().split("T")[0];
+export function InputAbsensi({ onSaved }) {
+  const today   = new Date().toISOString().split("T")[0];
+  const todayBln = new Date().toLocaleDateString("id-ID", { month: "long" });
+  const todayThn = new Date().getFullYear().toString();
+
   const [tgl,    setTgl]    = useState(today);
-  const [bulan,  setBulan]  = useState("Maret");
-  const [tahun,  setTahun]  = useState("2026");
+  const [bulan,  setBulan]  = useState(todayBln);
+  const [tahun,  setTahun]  = useState(todayThn);
   const [search, setSearch] = useState("");
   const [saved,  setSaved]  = useState(false);
 
-  // Tampil SEMUA siswa aktif — bukan hanya siswa guru ini
-  const SEMUA_SISWA_AKTIF = STUDENTS_DATA.filter(s => s.status === "Aktif");
+  // SEMUA siswa terdaftar di bimbel (aktif maupun tidak)
+  const SEMUA_SISWA = STUDENTS_DATA;
 
+  // Status kosong ("") berarti belum diisi
   const [absen, setAbsen] = useState(
-    SEMUA_SISWA_AKTIF.map(s => ({
+    SEMUA_SISWA.map(s => ({
       siswa_id:  s.id,
       nama:      s.nama,
-      program:   s.program,
+      program:   (s.programs || []).map(p => p.nama).join(", "),
       guru_id:   MY_GURU_ID,
       guru_nama: MY_GURU?.nama || "",
-      status:    "Hadir",
+      status:    "", // kosong dulu — guru klik baru terpilih
     }))
   );
 
-  const setStatus = (id, status) => setAbsen(absen.map(a => a.siswa_id === id ? { ...a, status } : a));
-  const checkAll  = () => setAbsen(absen.map(a => ({ ...a, status: "Hadir" })));
-  const clearAll  = () => setAbsen(absen.map(a => ({ ...a, status: "Alpha" })));
+  // Sync bulan/tahun saat tanggal berubah
+  const handleTglChange = (val) => {
+    setTgl(val);
+    const d = new Date(val);
+    setBulan(d.toLocaleDateString("id-ID", { month: "long" }));
+    setTahun(d.getFullYear().toString());
+  };
+
+  const setStatus = (id, status) => setAbsen(absen.map(a =>
+    a.siswa_id === id ? { ...a, status: a.status === status ? "" : status } : a
+  ));
+
+  const checkAll = () => setAbsen(absen.map(a => ({ ...a, status: "Hadir" })));
+  const clearAll = () => setAbsen(absen.map(a => ({ ...a, status: "" })));
 
   const filtered = absen.filter(a =>
     a.nama.toLowerCase().includes(search.toLowerCase()) ||
     a.program.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleSimpan = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  };
-
+  // Hanya hitung yang sudah diisi
   const totalHadir = absen.filter(a => a.status === "Hadir").length;
   const totalIzin  = absen.filter(a => a.status === "Izin").length;
   const totalSakit = absen.filter(a => a.status === "Sakit").length;
   const totalAlpha = absen.filter(a => a.status === "Alpha").length;
+  const belumDiisi = absen.filter(a => a.status === "").length;
+
+  const handleSimpan = () => {
+    // Simpan absensi yang sudah diisi (status tidak kosong)
+    const diisi = absen.filter(a => a.status !== "");
+    if (diisi.length === 0) return alert("Belum ada absensi yang diisi!");
+    setSaved(true);
+    // Callback ke parent agar rekap absensi bisa update
+    if (onSaved) onSaved(diisi.map(a => ({
+      ...a, tanggal: tgl, bulan, tahun, verified: false, id: Date.now() + Math.random(),
+    })));
+    setTimeout(() => setSaved(false), 3000);
+  };
 
   const STATUS_OPTIONS = ["Hadir", "Izin", "Sakit", "Alpha"];
   const STATUS_COLORS  = {
@@ -220,7 +226,7 @@ export function InputAbsensi() {
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label">Tanggal</label>
           <input className="form-input" type="date" value={tgl}
-            onChange={e => setTgl(e.target.value)} style={{ width: 160 }} />
+            onChange={e => handleTglChange(e.target.value)} style={{ width: 160 }} />
         </div>
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label">Bulan</label>
@@ -243,11 +249,11 @@ export function InputAbsensi() {
 
       {/* Summary */}
       <div className="stats-grid" style={{ marginBottom: 20 }}>
-        <StatCard icon="👨‍🎓" label="Total Siswa" value={absen.length}  bgColor="#dbeafe" textColor="#2563eb" />
-        <StatCard icon="✅"   label="Hadir"       value={totalHadir}   bgColor="#dcfce7" textColor="#16a34a" />
-        <StatCard icon="📋"   label="Izin"        value={totalIzin}    bgColor="#dbeafe" textColor="#2563eb" />
-        <StatCard icon="🤒"   label="Sakit"       value={totalSakit}   bgColor="#fef9c3" textColor="#b45309" />
-        <StatCard icon="❌"   label="Alpha"       value={totalAlpha}   bgColor="#fee2e2" textColor="#dc2626" />
+        <StatCard icon="⬜"  label="Belum Diisi" value={belumDiisi}  bgColor="#f1f5f9" textColor="#64748b" />
+        <StatCard icon="✅"  label="Hadir"       value={totalHadir}  bgColor="#dcfce7" textColor="#16a34a" />
+        <StatCard icon="📋"  label="Izin"        value={totalIzin}   bgColor="#dbeafe" textColor="#2563eb" />
+        <StatCard icon="🤒"  label="Sakit"       value={totalSakit}  bgColor="#fef9c3" textColor="#b45309" />
+        <StatCard icon="❌"  label="Alpha"       value={totalAlpha}  bgColor="#fee2e2" textColor="#dc2626" />
       </div>
 
       <div className="table-card">
@@ -268,7 +274,7 @@ export function InputAbsensi() {
               border: "1.5px solid #fee2e2", background: "transparent",
               color: "#dc2626", cursor: "pointer", fontFamily: "inherit", fontWeight: 600,
             }}>
-              ❌ Reset
+              ⬜ Kosongkan
             </button>
           </div>
         </div>
@@ -287,9 +293,9 @@ export function InputAbsensi() {
             </thead>
             <tbody>
               {filtered.map(a => (
-                <tr key={a.siswa_id}>
+                <tr key={a.siswa_id} style={{ background: a.status === "" ? "#fafbfc" : "#fff" }}>
                   <td><strong>{a.nama}</strong></td>
-                  <td><span className="badge blue">{a.program}</span></td>
+                  <td style={{ fontSize: ".78rem", color: "var(--muted)" }}>{a.program}</td>
                   <td>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                       {STATUS_OPTIONS.map(s => (
@@ -305,6 +311,14 @@ export function InputAbsensi() {
                           {s}
                         </button>
                       ))}
+                      {a.status !== "" && (
+                        <button onClick={() => setStatus(a.siswa_id, a.status)}
+                          style={{
+                            padding: "4px 8px", borderRadius: 100, border: "none",
+                            cursor: "pointer", background: "#f1f5f9", color: "#94a3b8",
+                            fontSize: ".72rem", fontFamily: "inherit",
+                          }}>✕</button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -313,10 +327,11 @@ export function InputAbsensi() {
           </table>
         </div>
 
-        {/* Simpan button */}
+        {/* Simpan */}
         <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)", display: "flex", gap: 12, alignItems: "center" }}>
-          <button className="btn-primary" style={{ padding: "10px 24px", fontSize: ".88rem" }} onClick={handleSimpan}>
-            💾 Simpan Absensi
+          <button className="btn-primary" style={{ padding: "10px 24px", fontSize: ".88rem" }}
+            onClick={handleSimpan}>
+            💾 Simpan Absensi ({absen.filter(a => a.status !== "").length} siswa)
           </button>
           {saved && (
             <span style={{ color: "#16a34a", fontWeight: 600, fontSize: ".85rem" }}>
@@ -332,32 +347,36 @@ export function InputAbsensi() {
 // ─────────────────────────────────────────────────────────────
 // 4. REKAP ABSENSI
 // ─────────────────────────────────────────────────────────────
-export function RekapAbsensi() {
-  const [bulan, setBulan] = useState("Maret");
-  const [tahun, setTahun] = useState("2026");
+export function RekapAbsensi({ savedAbsensi = [] }) {
+  const todayBln = new Date().toLocaleDateString("id-ID", { month: "long" });
+  const todayThn = new Date().getFullYear().toString();
+  const [bulan, setBulan] = useState(todayBln);
+  const [tahun, setTahun] = useState(todayThn);
   const [search, setSearch] = useState("");
 
+  // Gabungkan data bawaan + data yang baru disimpan dari InputAbsensi
+  const allAbsensi = [...ABSENSI_DATA, ...savedAbsensi];
+
   // Filter absensi milik guru ini di bulan/tahun yang dipilih
-  const data = ABSENSI_DATA.filter(a => {
-    const d   = new Date(a.tanggal);
-    const bln = d.toLocaleDateString("id-ID", { month: "long" });
-    const thn = d.getFullYear().toString();
+  const data = allAbsensi.filter(a => {
+    const bln = a.bulan || new Date(a.tanggal).toLocaleDateString("id-ID", { month: "long" });
+    const thn = a.tahun || new Date(a.tanggal).getFullYear().toString();
     return a.guru_id === MY_GURU_ID && bln === bulan && thn === tahun
-        && a.status === "Hadir"; // rekap hanya yang hadir
+        && a.status === "Hadir";
   });
 
-  // Filter search
   const filtered = data.filter(a =>
-    a.siswa_nama.toLowerCase().includes(search.toLowerCase())
+    (a.siswa_nama || a.nama || "").toLowerCase().includes(search.toLowerCase())
   );
 
-  const hadir       = data.length;
-  const tidakHadir  = ABSENSI_DATA.filter(a => {
-    const d   = new Date(a.tanggal);
-    const bln = d.toLocaleDateString("id-ID", { month: "long" });
-    const thn = d.getFullYear().toString();
+  const hadir = data.length;
+
+  // Hitung tidak hadir (Izin + Sakit + Alpha)
+  const tidakHadir = allAbsensi.filter(a => {
+    const bln = a.bulan || new Date(a.tanggal).toLocaleDateString("id-ID", { month: "long" });
+    const thn = a.tahun || new Date(a.tanggal).getFullYear().toString();
     return a.guru_id === MY_GURU_ID && bln === bulan && thn === tahun
-        && a.status === "Tidak Hadir";
+        && ["Izin", "Sakit", "Alpha", "Tidak Hadir"].includes(a.status);
   }).length;
 
   return (
@@ -420,7 +439,7 @@ export function RekapAbsensi() {
                         weekday: "long", day: "numeric", month: "long",
                       })}
                     </td>
-                    <td><strong>{a.siswa_nama}</strong></td>
+                    <td><strong>{a.siswa_nama || a.nama}</strong></td>
                   </tr>
                 ))}
               </tbody>
@@ -633,11 +652,10 @@ export function ProfilGuru({ user }) {
         {!edit ? (
           <>
             {[
-              { label: "Email",             val: form.email   },
-              { label: "No. Telepon",       val: form.kontak  },
-              { label: "Program Diajar",    val: form.program },
+              { label: "Email",          val: form.email },
+              { label: "No. Telepon",    val: form.kontak },
               { label: "Program Diajar", val: HONOR_SETTING.filter(s => s.guru_id === MY_GURU_ID).map(s => s.program).join(", ") },
-              { label: "Status",            val: MY_GURU?.status || "Aktif" },
+              { label: "Status",         val: MY_GURU?.status || "Aktif" },
             ].map((f, i) => (
               <div key={i} className="profile-field">
                 <label>{f.label}</label>
