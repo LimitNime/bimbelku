@@ -260,8 +260,8 @@ export const HONOR_DATA = [
 
     // Bagian 1: Honor mengajar per program
     mengajar: [
-      { program: "Matematika SMP", jumlah_siswa: 8, honor_per_siswa: 13000 },
-      { program: "Matematika SMA", jumlah_siswa: 5, honor_per_siswa: 15000 },
+      { program: "Matematika SMP", jumlah_pertemuan: 4, honor_per_siswa: 13000 },
+      { program: "Matematika SMA", jumlah_pertemuan: 4, honor_per_siswa: 15000 },
     ],
 
     // Bagian 2: Komponen tetap (dari setting, nominal bisa diedit per bulan)
@@ -285,9 +285,9 @@ export const HONOR_DATA = [
     tgl_bayar: "-",
 
     mengajar: [
-      { program: "Calistung",      jumlah_siswa: 12, honor_per_siswa: 6000  },
-      { program: "Bahasa Inggris", jumlah_siswa: 7,  honor_per_siswa: 10000 },
-      { program: "Matematika SD",  jumlah_siswa: 6,  honor_per_siswa: 8000  },
+      { program: "Calistung",      jumlah_pertemuan: 4, honor_per_siswa: 6000  },
+      { program: "Bahasa Inggris", jumlah_pertemuan: 3, honor_per_siswa: 10000 },
+      { program: "Matematika SD",  jumlah_pertemuan: 3, honor_per_siswa: 8000  },
     ],
 
     komponen_tetap: [
@@ -309,8 +309,8 @@ export const HONOR_DATA = [
     tgl_bayar: "10 Mar 2026",
 
     mengajar: [
-      { program: "IPA Terpadu",  jumlah_siswa: 5, honor_per_siswa: 12000 },
-      { program: "Persiapan UN", jumlah_siswa: 3, honor_per_siswa: 14000 },
+      { program: "IPA Terpadu",  jumlah_pertemuan: 3, honor_per_siswa: 12000 },
+      { program: "Persiapan UN", jumlah_pertemuan: 2, honor_per_siswa: 14000 },
     ],
 
     komponen_tetap: [

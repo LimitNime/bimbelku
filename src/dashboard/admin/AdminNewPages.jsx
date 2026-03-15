@@ -577,11 +577,60 @@ export function HonorGuru() {
     } : h));
   };
 
+  // ── Hitung pertemuan dari absensi TERVERIFIKASI ──────────────
+  const hitungPertemuanDariAbsensi = (guru_id, bulan, tahun) => {
+    const absBulan = ABSENSI_DATA.filter(a => {
+      const d   = new Date(a.tanggal);
+      const bln = d.toLocaleDateString("id-ID", { month: "long" });
+      const thn = d.getFullYear().toString();
+      // ✅ Hanya absensi yang sudah diverifikasi admin
+      return a.guru_id === guru_id && bln === bulan && thn === tahun
+          && a.verified === true;
+    });
+
+    // Group by program → hitung tanggal unik per program
+    const perProgram = {};
+    absBulan.forEach(a => {
+      if (!perProgram[a.program]) perProgram[a.program] = new Set();
+      perProgram[a.program].add(a.tanggal);
+    });
+
+    return Object.entries(perProgram).map(([program, tglSet]) => ({
+      program,
+      jumlah_pertemuan: tglSet.size,
+    }));
+  };
+
   // ── Tambah honor baru untuk guru yang belum ada di bulan ini ─
   const tambahHonor = (guru) => {
     if (data.find(h => h.guru_id === guru.id && h.bulan === bulan && h.tahun === tahun)) return;
     const setting      = HONOR_SETTING.filter(s => s.guru_id === guru.id);
     const komponenSett = KOMPONEN_HONOR_SETTING.filter(k => k.guru_id === guru.id && k.aktif);
+
+    // Hitung pertemuan dari absensi TERVERIFIKASI saja
+    const pertemuan = hitungPertemuanDariAbsensi(guru.id, bulan, tahun);
+
+    // Gabungkan dengan honor_setting
+    // Kalau program belum ada di setting → honor_per_siswa = 0
+    // Admin perlu tambah setting honor dulu untuk program itu
+    const mengajar = pertemuan.map(p => {
+      const s = setting.find(x => x.program === p.program);
+      return {
+        program:          p.program,
+        jumlah_pertemuan: p.jumlah_pertemuan,
+        honor_per_siswa:  s?.honor_per_siswa || 0,
+        // Tandai kalau belum ada setting — supaya admin tau perlu diset
+        belum_setting:    !s,
+      };
+    });
+
+    // Kalau tidak ada absensi terverifikasi, pakai setting saja
+    if (mengajar.length === 0) {
+      setting.forEach(s => {
+        mengajar.push({ program: s.program, jumlah_pertemuan: 0, honor_per_siswa: s.honor_per_siswa, belum_setting: false });
+      });
+    }
+
     const newHonor = {
       id:             Date.now(),
       guru_id:        guru.id,
@@ -589,7 +638,7 @@ export function HonorGuru() {
       bulan,  tahun,
       status:         "Belum",
       tgl_bayar:      "-",
-      mengajar:       setting.map(s => ({ program: s.program, jumlah_siswa: 0, honor_per_siswa: s.honor_per_siswa })),
+      mengajar,
       komponen_tetap: komponenSett.map(k => ({ nama: k.nama, nominal: k.nominal_default })),
       honor_tambahan: [],
     };
@@ -676,20 +725,14 @@ export function HonorGuru() {
 
 // ── HonorCard — kartu per guru ────────────────────────────────
 function HonorCard({ honor, isEdit, onToggleEdit, onUpdate, onDelete, onToggleBayar, onSlip }) {
-  const h           = honor;
-  const totalMengajar = (h.mengajar||[]).reduce((a,b)=>a+b.jumlah_siswa*b.honor_per_siswa,0);
+  const h             = honor;
+  const totalMengajar = (h.mengajar||[]).reduce((a,b)=>a+(b.jumlah_pertemuan||b.jumlah_siswa||0)*b.honor_per_siswa,0);
   const totalKomponen = (h.komponen_tetap||[]).reduce((a,b)=>a+b.nominal,0);
   const totalTambahan = (h.honor_tambahan||[]).reduce((a,b)=>a+b.nominal,0);
   const totalGaji     = totalMengajar + totalKomponen + totalTambahan;
   const fmt           = (n) => "Rp " + n.toLocaleString("id-ID");
 
   // ── Update helpers ────────────────────────────────────────
-  const updateMengajar = (idx, field, val) => {
-    const m = [...h.mengajar];
-    m[idx]  = { ...m[idx], [field]: parseInt(val) || 0 };
-    onUpdate({ ...h, mengajar: m });
-  };
-
   const updateKomponen = (idx, val) => {
     const k = [...h.komponen_tetap];
     k[idx]  = { ...k[idx], nominal: parseInt(val) || 0 };
@@ -757,17 +800,30 @@ function HonorCard({ honor, isEdit, onToggleEdit, onUpdate, onDelete, onToggleBa
         <div style={{ padding: "16px 20px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 16 }}>
 
-            {/* Honor mengajar */}
+            {/* Honor mengajar — otomatis dari absensi */}
             <div>
               <div style={{ fontSize: ".75rem", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 10 }}>
                 📚 Honor Mengajar
               </div>
-              {(h.mengajar||[]).map((m,i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #f1f5f9", fontSize: ".85rem" }}>
-                  <span>{m.program} ({m.jumlah_siswa} siswa)</span>
-                  <strong style={{ color: "var(--blue)" }}>{fmt(m.jumlah_siswa*m.honor_per_siswa)}</strong>
-                </div>
-              ))}
+              {(h.mengajar||[]).map((m,i) => {
+                const pertemuan = m.jumlah_pertemuan || m.jumlah_siswa || 0;
+                return (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #f1f5f9", fontSize: ".85rem" }}>
+                    <span>
+                      {m.program}{" "}
+                      <span style={{ color: "var(--muted)", fontSize: ".78rem" }}>({pertemuan} pertemuan)</span>
+                      {m.belum_setting && (
+                        <span style={{ marginLeft: 6, fontSize: ".68rem", background: "#fef9c3", color: "#b45309", padding: "1px 6px", borderRadius: 4, fontWeight: 700 }}>
+                          ⚠️ Setting honor belum diisi
+                        </span>
+                      )}
+                    </span>
+                    <strong style={{ color: m.belum_setting ? "#b45309" : "var(--blue)" }}>
+                      {m.belum_setting ? "Rp 0 — isi setting dulu" : fmt(pertemuan * m.honor_per_siswa)}
+                    </strong>
+                  </div>
+                );
+              })}
               <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontSize: ".85rem", fontWeight: 700 }}>
                 <span>Subtotal</span><span style={{ color: "var(--blue)" }}>{fmt(totalMengajar)}</span>
               </div>
@@ -810,42 +866,50 @@ function HonorCard({ honor, isEdit, onToggleEdit, onUpdate, onDelete, onToggleBa
 
           {/* 1. Honor mengajar */}
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: ".82rem", fontWeight: 700, marginBottom: 10, color: "var(--text)" }}>
-              📚 Honor Mengajar — input jumlah siswa hadir
+            <div style={{ fontSize: ".82rem", fontWeight: 700, color: "var(--text)", marginBottom: 10 }}>
+              📚 Honor Mengajar
             </div>
             <div style={{ overflowX: "auto" }}>
               <table>
                 <thead>
                   <tr>
                     <th>Program</th>
-                    <th>Honor/Siswa</th>
-                    <th>Jml Siswa Hadir</th>
+                    <th>Honor/Pertemuan</th>
+                    <th>Jml Pertemuan</th>
                     <th>Subtotal</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(h.mengajar||[]).map((m, i) => (
-                    <tr key={i}>
-                      <td><strong>{m.program}</strong></td>
-                      <td style={{ color: "var(--muted)", fontSize: ".82rem" }}>{fmt(m.honor_per_siswa)}</td>
-                      <td>
-                        <input
-                          type="number" min="0"
-                          value={m.jumlah_siswa}
-                          onChange={e => updateMengajar(i, "jumlah_siswa", e.target.value)}
-                          style={{
-                            width: 80, padding: "6px 10px", borderRadius: 8,
-                            border: "1.5px solid var(--border)", fontFamily: "inherit",
-                            fontSize: ".88rem", textAlign: "center",
-                          }}
-                        />
-                        <span style={{ fontSize: ".78rem", color: "var(--muted)", marginLeft: 6 }}>siswa</span>
-                      </td>
-                      <td style={{ fontWeight: 700, color: "var(--blue)" }}>
-                        {fmt(m.jumlah_siswa * m.honor_per_siswa)}
-                      </td>
-                    </tr>
-                  ))}
+                  {(h.mengajar||[]).map((m, i) => {
+                    const pertemuan = m.jumlah_pertemuan || m.jumlah_siswa || 0;
+                    return (
+                      <tr key={i} style={{ background: m.belum_setting ? "#fffbeb" : "#fff" }}>
+                        <td>
+                          <strong>{m.program}</strong>
+                          {m.belum_setting && (
+                            <div style={{ fontSize: ".72rem", color: "#b45309", marginTop: 2 }}>
+                              ⚠️ Belum ada setting honor — tambah di menu Setting Honor Guru
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ color: m.belum_setting ? "#b45309" : "var(--muted)", fontSize: ".82rem" }}>
+                          {m.belum_setting ? "—" : fmt(m.honor_per_siswa)}
+                        </td>
+                        <td>
+                          <span style={{
+                            display: "inline-block", padding: "4px 12px",
+                            background: "#f0f9ff", borderRadius: 8,
+                            fontSize: ".88rem", fontWeight: 700, color: "var(--blue)",
+                          }}>
+                            {pertemuan} pertemuan
+                          </span>
+                        </td>
+                        <td style={{ fontWeight: 700, color: m.belum_setting ? "#b45309" : "var(--blue)" }}>
+                          {m.belum_setting ? "Rp 0" : fmt(pertemuan * m.honor_per_siswa)}
+                        </td>
+                      </tr>
+                    );
+                  })}
                   <tr style={{ background: "#f8fafc" }}>
                     <td colSpan={3} style={{ fontWeight: 700, textAlign: "right" }}>Subtotal Mengajar</td>
                     <td style={{ fontWeight: 800, color: "var(--blue)" }}>{fmt(totalMengajar)}</td>

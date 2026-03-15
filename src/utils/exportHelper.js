@@ -152,9 +152,10 @@ export const cetakSlipGajiPDF = (honor, guru) => {
   let subtotalMengajar = 0;
 
   mengajar.forEach(m => {
-    const sub = (m.jumlah_siswa || 0) * (m.honor_per_siswa || 0);
+    const pertemuan = m.jumlah_pertemuan || m.jumlah_siswa || 0;
+    const sub = pertemuan * (m.honor_per_siswa || 0);
     subtotalMengajar += sub;
-    tableRow(`${m.program}  (${m.jumlah_siswa} siswa × ${fmt(m.honor_per_siswa)})`, fmt(sub));
+    tableRow(`${m.program}  (${pertemuan} pertemuan × ${fmt(m.honor_per_siswa)})`, fmt(sub));
   });
 
   y += 1;

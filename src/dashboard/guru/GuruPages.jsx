@@ -40,7 +40,7 @@ const fmtTglShort = (iso) => new Date(iso).toLocaleDateString("id-ID", {
 // ─────────────────────────────────────────────────────────────
 export function GuruDashboard({ onMenu }) {
   const myHonor    = HONOR_DATA.find(h => h.guru_id === MY_GURU_ID);
-  const totalHonor = myHonor?.mengajar?.reduce((a,b) => a + b.jumlah_siswa * b.honor_per_siswa, 0) || 0;
+  const totalHonor = myHonor?.mengajar?.reduce((a,b) => a + ( b.jumlah_pertemuan || b.jumlah_siswa || 0) * b.honor_per_siswa, 0) || 0;
 
   // Absensi bulan ini
   const absBulanIni = ABSENSI_DATA.filter(a => {
@@ -463,7 +463,7 @@ export function HonorGuruPage() {
   );
 
   // Kalkulasi total dari 3 komponen
-  const totalMengajar = (honor?.mengajar || []).reduce((a, b) => a + b.jumlah_siswa * b.honor_per_siswa, 0);
+  const totalMengajar = (honor?.mengajar || []).reduce((a, b) => a + ( b.jumlah_pertemuan || b.jumlah_siswa || 0) * b.honor_per_siswa, 0);
   const totalKomponen = (honor?.komponen_tetap || []).reduce((a, b) => a + b.nominal, 0);
   const totalTambahan = (honor?.honor_tambahan || []).reduce((a, b) => a + b.nominal, 0);
   const totalGaji     = totalMengajar + totalKomponen + totalTambahan;
@@ -537,11 +537,11 @@ export function HonorGuruPage() {
                 <div>
                   <div style={{ fontWeight: 600, fontSize: ".88rem" }}>{m.program}</div>
                   <div style={{ fontSize: ".75rem", color: "var(--muted)", marginTop: 2 }}>
-                    {m.jumlah_siswa} siswa hadir
+                    {(m.jumlah_pertemuan || m.jumlah_siswa || 0)} pertemuan
                   </div>
                 </div>
                 <strong style={{ color: "var(--blue)" }}>
-                  {fmt(m.jumlah_siswa * m.honor_per_siswa)}
+                  {fmt((m.jumlah_pertemuan || m.jumlah_siswa || 0) * m.honor_per_siswa)}
                 </strong>
               </div>
             ))}
