@@ -1,40 +1,11 @@
 // ============================================================
-// PublicPages.jsx — Packages / Articles / ArticleDetail / About
+// PublicPages.jsx — Articles / ArticleDetail / About
 // ============================================================
 import Navbar from "../components/Navbar.jsx";
 import Footer from "../components/Footer.jsx";
-import PackageCard from "../components/PackageCard.jsx";
 import ArticleCard from "../components/ArticleCard.jsx";
 import Icon from "../components/Icon.jsx";
-import { PACKAGES, ARTICLES, TEACHERS_DATA } from "../data";
-
-/* ── Packages page ────────────────────────────────────────── */
-export function PackagesPage({ onNav, onLogin }) {
-  return (
-    <>
-      <Navbar onNav={onNav} onLogin={onLogin} />
-      <div style={{ paddingTop: 88 }}>
-        <section className="section">
-          <div className="section-header" style={{ textAlign: "center" }}>
-            <div className="section-label green" style={{ margin: "0 auto 12px" }}>✦ Paket Belajar</div>
-            <h2 className="section-title">Pilih Paket yang Tepat Untukmu</h2>
-            <p className="section-sub" style={{ margin: "0 auto" }}>
-              Semua paket sudah termasuk akses modul belajar, grup diskusi, dan evaluasi berkala.
-            </p>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 24 }}>
-            {PACKAGES.map((pkg, i) => (
-              <div key={pkg.id} className="fade-in" style={{ animationDelay: `${i * .1}s` }}>
-                <PackageCard pkg={pkg} onDaftar={onLogin} />
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-      <Footer onNav={onNav} />
-    </>
-  );
-}
+import { ARTICLES, TEACHERS_DATA } from "../data/index.js";
 
 /* ── Articles list page ───────────────────────────────────── */
 export function ArticlesPage({ onNav, onLogin, onArticle }) {

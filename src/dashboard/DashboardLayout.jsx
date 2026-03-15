@@ -1,50 +1,61 @@
 // ============================================================
 // DashboardLayout.jsx — Shell for all dashboard views
 // ============================================================
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar.jsx";
 import Icon from "../components/Icon.jsx";
 
 const ALL_LABELS = {
-  "spp":           "SPP Siswa",
-  "pemasukan":     "Pemasukan",
-  "pengeluaran":   "Pengeluaran",
-  "saldo":         "Saldo & Laporan Keuangan",
-  "honor":         "Honor Guru",
-  "absen-siswa":   "Absensi Siswa",
-  "absen-guru":    "Absensi Guru",
-  "tutorial":      "Tutorial",
-  dashboard:     "Dashboard",
-  siswa:         "Manajemen Siswa",
-  guru:          "Manajemen Guru",
-  paket:         "Paket Belajar",
+  // Shared
+  "dashboard":      "Dashboard",
+  "artikel-detail": "Detail Artikel",
+
+  // Admin
+  "siswa":          "Data Siswa",
+  "guru":           "Data Guru",
+  "spp":            "SPP Siswa",
+  "pemasukan":      "Pemasukan",
+  "pengeluaran":    "Pengeluaran",
+  "saldo":          "Saldo & Laporan",
+  "honor":          "Honor Guru",
   "artikel-admin":  "Manajemen Artikel",
-  "user-mgmt":   "Manajemen User",
-  "daftar-siswa":"Daftar Siswa",
-  jadwal:        "Jadwal Mengajar",
-  profil:        "Profil Guru",
-  "paket-siswa": "Paket Saya",
-  "jadwal-siswa":"Jadwal Belajar",
-  "artikel-siswa":"Artikel Bimbel",
-  "profil-siswa":"Profil Saya",
-  "artikel-detail":"Detail Artikel",
+  "tutorial":       "Tutorial",
+  "user-mgmt":      "Manajemen User",
+
+  // Guru
+  "daftar-siswa":   "Daftar Siswa",
+  "input-absensi":  "Input Absensi",
+  "rekap-absensi":  "Rekap Absensi",
+  "honor-guru":     "Honor Saya",
+  "profil-guru":    "Profil Saya",
+
+  // Siswa
+  "absensi-siswa":  "Absensi Saya",
+  "pembayaran":     "Pembayaran SPP",
+  "artikel-siswa":  "Artikel Bimbel",
+  "profil-siswa":   "Profil Saya",
 };
 
-const DISPLAY_NAMES = { Admin: "Admin", Guru: "Budi", Siswa: "Andi" };
+const DISPLAY_NAMES = { Admin: "Admin", Guru: "Tentor", Siswa: "Siswa" };
 const ROLE_COLORS   = { Admin: "#8b5cf6", Guru: "#3b82f6", Siswa: "#22c55e" };
 
 export default function DashboardLayout({ user, children, activeMenu, onMenu, onLogout }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile,    setIsMobile]    = useState(window.innerWidth <= 900);
+
+  useEffect(() => {
+    const fn = () => setIsMobile(window.innerWidth <= 900);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+
   const pageTitle = ALL_LABELS[activeMenu] || "Dashboard";
   const color     = ROLE_COLORS[user.role];
 
-  // Listen to window resize
-  useState(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 900);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  });
+  // Ambil nama dari email
+  const displayName = user.email.split("@")[0]
+    .replace(/[._]/g, " ")
+    .replace(/\b\w/g, l => l.toUpperCase());
 
   const handleMenuClick = (key) => {
     onMenu(key);
@@ -52,8 +63,9 @@ export default function DashboardLayout({ user, children, activeMenu, onMenu, on
   };
 
   return (
-    <div className="dashboard">
-      {/* Mobile overlay — hanya muncul saat sidebar terbuka di mobile */}
+    <div style={{ display: "flex", minHeight: "100vh" }}>
+
+      {/* ── Mobile overlay ──────────────────────────────── */}
       {isMobile && sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
@@ -65,7 +77,7 @@ export default function DashboardLayout({ user, children, activeMenu, onMenu, on
         />
       )}
 
-      {/* Sidebar — selalu tampil di desktop, slide di mobile */}
+      {/* ── Sidebar ─────────────────────────────────────── */}
       <div style={{
         position: "fixed", left: 0, top: 0, bottom: 0,
         zIndex: 200, width: "var(--sidebar-w)",
@@ -80,41 +92,64 @@ export default function DashboardLayout({ user, children, activeMenu, onMenu, on
         />
       </div>
 
-      {/* Main content — margin kiri hanya di desktop */}
+      {/* ── Main content ────────────────────────────────── */}
       <div style={{
         marginLeft: isMobile ? 0 : "var(--sidebar-w)",
         flex: 1, minHeight: "100vh",
         transition: "margin-left .3s ease",
+        background: "var(--bg)",
       }}>
+
         {/* Topbar */}
-        <div className="topbar">
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            {/* Tombol hamburger — selalu ada, tapi hanya berguna di mobile */}
+        <div style={{
+          background: "#fff",
+          borderBottom: "1px solid var(--border)",
+          padding: "0 24px",
+          height: 60,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          position: "sticky", top: 0, zIndex: 50,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {/* Hamburger — mobile only */}
             {isMobile && (
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 style={{
-                  background: "none", border: "none", cursor: "pointer",
-                  color: "var(--text)", display: "flex", padding: 4,
+                  background: "none", border: "none",
+                  cursor: "pointer", color: "var(--text)",
+                  display: "flex", padding: 4,
                 }}
               >
                 <Icon name={sidebarOpen ? "x" : "menu"} size={22} />
               </button>
             )}
-            <h2 style={{ fontSize: "1.05rem", fontWeight: 700 }}>{pageTitle}</h2>
+            <h2 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>
+              {pageTitle}
+            </h2>
           </div>
-          <div className="topbar-right">
+
+          {/* Right side */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: ".82rem", color: "var(--muted)" }}>
-              Halo, {DISPLAY_NAMES[user.role]} 👋
+              Halo, {displayName} 👋
             </span>
-            <div className="topbar-avatar" style={{ background: color }}>
+            <div style={{
+              width: 34, height: 34, borderRadius: 9,
+              background: color, display: "flex",
+              alignItems: "center", justifyContent: "center",
+              color: "#fff", fontSize: ".85rem", fontWeight: 700,
+            }}>
               {user.email[0].toUpperCase()}
             </div>
           </div>
         </div>
 
         {/* Page content */}
-        <div className="page-body">{children}</div>
+        <div style={{ padding: 24 }}>
+          {children}
+        </div>
       </div>
     </div>
   );

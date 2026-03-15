@@ -4,10 +4,18 @@
 import { useState, useEffect } from "react";
 import Navbar from "../components/Navbar.jsx";
 import Footer from "../components/Footer.jsx";
-import PackageCard from "../components/PackageCard.jsx";
+
 import ArticleCard from "../components/ArticleCard.jsx";
 import Icon from "../components/Icon.jsx";
-import { PACKAGES, ARTICLES, FEATURES } from "../data/index.js";
+import { ARTICLES } from "../data/index.js";
+
+// Data statis features — tidak perlu dari data/index.js
+const FEATURES = [
+  { icon: "🏆", color: "#fef9c3", title: "Tentor Berpengalaman",  desc: "Tentor kami telah berpengalaman 5–15 tahun dan memiliki track record mengantarkan siswa ke PTN favorit." },
+  { icon: "📱", color: "#dbeafe", title: "Belajar Fleksibel",     desc: "Belajar online maupun offline, jadwal bisa disesuaikan dengan kesibukan siswa." },
+  { icon: "📊", color: "#dcfce7", title: "Laporan Berkala",       desc: "Orang tua mendapat laporan perkembangan belajar siswa setiap bulan secara lengkap." },
+  { icon: "🎯", color: "#f3e8ff", title: "Kurikulum Terstruktur", desc: "Materi pembelajaran mengacu pada kurikulum terbaru dan disesuaikan dengan ujian nasional." },
+];
 
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= breakpoint);
@@ -164,26 +172,6 @@ function FeaturesSection() {
   );
 }
 
-/* ── Packages preview ─────────────────────────────────────── */
-function PackagesPreview({ onDaftar }) {
-  return (
-    <section className="section">
-      <div className="section-header">
-        <div className="section-label green">✦ Paket Belajar</div>
-        <h2 className="section-title">Pilih Paket Sesuai Kebutuhan</h2>
-        <p className="section-sub">Tersedia berbagai pilihan paket pembelajaran yang dapat disesuaikan dengan kebutuhan dan anggaran kamu.</p>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 24 }}>
-        {PACKAGES.map((pkg, i) => (
-          <div key={pkg.id} className="fade-in" style={{ animationDelay: `${i * .1}s` }}>
-            <PackageCard pkg={pkg} onDaftar={onDaftar} />
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 /* ── Articles preview ─────────────────────────────────────── */
 function ArticlesPreview({ onArticle }) {
   return (
@@ -214,7 +202,6 @@ export default function HomePage({ onNav, onLogin, onArticle }) {
       <Navbar onNav={onNav} onLogin={onLogin} />
       <HeroSection onDaftar={onLogin} />
       <FeaturesSection />
-      <PackagesPreview onDaftar={onLogin} />
       <ArticlesPreview onArticle={onArticle} />
       <Footer onNav={onNav} />
     </>
