@@ -162,3 +162,43 @@ tr:hover td { background: #fafbfc; }
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .section    { padding: 50px 5%; }
 }
+
+/* ── Landing page responsive fixes ────────────────────────── */
+@media (max-width: 768px) {
+  .nav-desktop   { display: none !important; }
+  .nav-hamburger { display: flex !important; }
+
+  .section { padding: 48px 5% !important; }
+  .section-header { margin-bottom: 28px !important; }
+  .section-title  { font-size: 1.5rem !important; }
+
+  /* Package cards full width on small screens */
+  .pkg-card { padding: 24px 20px !important; }
+
+  /* Article cards */
+  .article-img { height: 120px !important; }
+}
+
+@media (max-width: 480px) {
+  .section { padding: 36px 4% !important; }
+
+  /* Buttons full width in hero */
+  .btn-primary, .btn-outline {
+    font-size: 0.88rem !important;
+    padding: 12px 20px !important;
+  }
+
+  /* Stats row wraps nicely */
+  .hero-stats { gap: 16px !important; }
+
+  /* Footer bottom stacks */
+  .footer-bottom {
+    flex-direction: column !important;
+    text-align: center !important;
+    gap: 6px !important;
+  }
+
+  /* Table scroll on tiny screens */
+  .table-card { overflow-x: auto !important; }
+  th, td { padding: 8px 12px !important; font-size: 0.78rem !important; }
+}

@@ -157,7 +157,7 @@ export function Pemasukan() {
       {showForm && (
         <div className="content-card" style={{ marginBottom: 20 }}>
           <h3>Tambah Pemasukan</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginTop: 14 }}>
             <div className="form-group"><label className="form-label">Tanggal</label><input className="form-input" type="date" value={form.tanggal} onChange={e => setForm({ ...form, tanggal: e.target.value })} /></div>
             <div className="form-group"><label className="form-label">Kategori</label>
               <select className="form-input" value={form.kategori} onChange={e => setForm({ ...form, kategori: e.target.value })}>
@@ -241,7 +241,7 @@ export function Pengeluaran() {
       {showForm && (
         <div className="content-card" style={{ marginBottom: 20 }}>
           <h3>Tambah Pengeluaran</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginTop: 14 }}>
             <div className="form-group"><label className="form-label">Tanggal</label><input className="form-input" type="date" value={form.tanggal} onChange={e => setForm({ ...form, tanggal: e.target.value })} /></div>
             <div className="form-group"><label className="form-label">Kategori</label>
               <select className="form-input" value={form.kategori} onChange={e => setForm({ ...form, kategori: e.target.value })}>
@@ -554,7 +554,7 @@ export function Tutorial() {
       {showForm && (
         <div className="content-card" style={{ marginBottom: 20 }}>
           <h3>Tambah Tutorial Baru</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginTop: 14 }}>
             <div className="form-group"><label className="form-label">Judul</label><input className="form-input" value={form.judul} onChange={e => setForm({ ...form, judul: e.target.value })} placeholder="Judul tutorial..." /></div>
             <div className="form-group"><label className="form-label">Kategori</label>
               <select className="form-input" value={form.kategori} onChange={e => setForm({ ...form, kategori: e.target.value })}>

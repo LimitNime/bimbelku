@@ -98,7 +98,7 @@ export function ManajemenSiswa() {
       {showForm && (
         <div className="content-card" style={{ marginBottom: 20 }}>
           <h3>Tambah Siswa Baru</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginTop: 14 }}>
             <div className="form-group">
               <label className="form-label">Nama</label>
               <input className="form-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Nama lengkap" />
