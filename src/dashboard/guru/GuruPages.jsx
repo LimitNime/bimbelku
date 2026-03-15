@@ -171,8 +171,19 @@ export function InputAbsensi() {
   const [tahun,  setTahun]  = useState("2026");
   const [search, setSearch] = useState("");
   const [saved,  setSaved]  = useState(false);
-  const [absen,  setAbsen]  = useState(
-    MY_SISWA.map(s => ({ siswa_id: s.id, nama: s.nama, program: s.program, status: "Hadir" }))
+
+  // Tampil SEMUA siswa aktif — bukan hanya siswa guru ini
+  const SEMUA_SISWA_AKTIF = STUDENTS_DATA.filter(s => s.status === "Aktif");
+
+  const [absen, setAbsen] = useState(
+    SEMUA_SISWA_AKTIF.map(s => ({
+      siswa_id:  s.id,
+      nama:      s.nama,
+      program:   s.program,
+      guru_id:   MY_GURU_ID,
+      guru_nama: MY_GURU?.nama || "",
+      status:    "Hadir",
+    }))
   );
 
   const setStatus = (id, status) => setAbsen(absen.map(a => a.siswa_id === id ? { ...a, status } : a));
@@ -241,7 +252,12 @@ export function InputAbsensi() {
 
       <div className="table-card">
         <div className="table-head">
-          <h3>Daftar Hadir — {fmtTglShort(tgl)}</h3>
+          <div>
+            <h3>Daftar Hadir — {fmtTglShort(tgl)}</h3>
+            <div style={{ fontSize: ".75rem", color: "var(--muted)", marginTop: 3 }}>
+              Diisi oleh: <strong>{MY_GURU?.nama}</strong>
+            </div>
+          </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={checkAll} className="btn-outline"
               style={{ padding: "7px 12px", fontSize: ".78rem" }}>

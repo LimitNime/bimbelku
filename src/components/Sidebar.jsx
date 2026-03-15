@@ -13,6 +13,9 @@ const MENUS = {
       { key: "siswa",          label: "Data Siswa",         icon: "users"   },
       { key: "guru",           label: "Data Guru",          icon: "users"   },
     ],
+    "Absensi": [
+      { key: "rekap-absensi-admin", label: "Rekap Absensi", icon: "check"   },
+    ],
     "Keuangan": [
       { key: "spp",            label: "SPP Siswa",          icon: "book"    },
       { key: "pemasukan",      label: "Pemasukan",          icon: "arrow"   },

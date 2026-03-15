@@ -31,6 +31,7 @@ import {
   SaldoLaporan,
   HonorGuru,
   Tutorial,
+  RekapAbsensiAdmin,
 } from "./dashboard/admin/AdminNewPages.jsx";
 
 // ── Guru pages ───────────────────────────────────────────────
@@ -108,6 +109,7 @@ export default function App() {
         case "dashboard":     return <AdminDashboard />;
         case "siswa":         return <ManajemenSiswa />;
         case "guru":          return <ManajemenGuru />;
+        case "rekap-absensi-admin": return <RekapAbsensiAdmin />;
         case "spp":           return <SPPSiswa />;
         case "pemasukan":     return <Pemasukan />;
         case "pengeluaran":   return <Pengeluaran />;

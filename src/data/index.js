@@ -311,26 +311,46 @@ export const HONOR_DATA = [
 ];
 
 // ── Data Absensi Siswa ────────────────────────────────────────
+// Tiap baris = 1 siswa + 1 hari + guru yang ngisi
+// Guru bisa ngisi siswa siapa saja (bukan hanya siswa dia)
+// verified = admin sudah verifikasi atau belum
 export const ABSENSI_DATA = [
-  // Andi Pratama — Matematika SMP — Pak Budi
-  { id: 1,  siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Matematika SMP", guru_id: 1, tanggal: "2026-03-03", status: "Hadir"       },
-  { id: 2,  siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Matematika SMP", guru_id: 1, tanggal: "2026-03-06", status: "Hadir"       },
-  { id: 3,  siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Matematika SMP", guru_id: 1, tanggal: "2026-03-10", status: "Tidak Hadir" },
-  { id: 4,  siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Matematika SMP", guru_id: 1, tanggal: "2026-03-13", status: "Hadir"       },
-  // Siti Rahma — Calistung — Bu Sari
-  { id: 5,  siswa_id: 2, siswa_nama: "Siti Rahma",    program: "Calistung",      guru_id: 2, tanggal: "2026-03-03", status: "Hadir"       },
-  { id: 6,  siswa_id: 2, siswa_nama: "Siti Rahma",    program: "Calistung",      guru_id: 2, tanggal: "2026-03-06", status: "Hadir"       },
-  { id: 7,  siswa_id: 2, siswa_nama: "Siti Rahma",    program: "Calistung",      guru_id: 2, tanggal: "2026-03-10", status: "Hadir"       },
-  { id: 8,  siswa_id: 2, siswa_nama: "Siti Rahma",    program: "Calistung",      guru_id: 2, tanggal: "2026-03-13", status: "Tidak Hadir" },
-  // Budi Wijaya — Matematika SMA — Pak Budi
-  { id: 9,  siswa_id: 3, siswa_nama: "Budi Wijaya",   program: "Matematika SMA", guru_id: 1, tanggal: "2026-03-03", status: "Hadir"       },
-  { id: 10, siswa_id: 3, siswa_nama: "Budi Wijaya",   program: "Matematika SMA", guru_id: 1, tanggal: "2026-03-06", status: "Tidak Hadir" },
-  { id: 11, siswa_id: 3, siswa_nama: "Budi Wijaya",   program: "Matematika SMA", guru_id: 1, tanggal: "2026-03-10", status: "Hadir"       },
-  { id: 12, siswa_id: 3, siswa_nama: "Budi Wijaya",   program: "Matematika SMA", guru_id: 1, tanggal: "2026-03-13", status: "Hadir"       },
-  // Rizal Maulana — IPA Terpadu — Pak Rizky
-  { id: 13, siswa_id: 5, siswa_nama: "Rizal Maulana", program: "IPA Terpadu",    guru_id: 3, tanggal: "2026-03-04", status: "Hadir"       },
-  { id: 14, siswa_id: 5, siswa_nama: "Rizal Maulana", program: "IPA Terpadu",    guru_id: 3, tanggal: "2026-03-07", status: "Hadir"       },
-  { id: 15, siswa_id: 5, siswa_nama: "Rizal Maulana", program: "IPA Terpadu",    guru_id: 3, tanggal: "2026-03-11", status: "Tidak Hadir" },
+  // 3 Mar 2026 — diisi Pak Budi
+  { id: 1,  tanggal: "2026-03-03", siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Matematika SMP", guru_id: 1, guru_nama: "Drs. Budi Santoso",  status: "Hadir",       verified: true  },
+  { id: 2,  tanggal: "2026-03-03", siswa_id: 3, siswa_nama: "Budi Wijaya",   program: "Matematika SMA", guru_id: 1, guru_nama: "Drs. Budi Santoso",  status: "Hadir",       verified: true  },
+  // 3 Mar 2026 — diisi Bu Sari
+  { id: 3,  tanggal: "2026-03-03", siswa_id: 2, siswa_nama: "Siti Rahma",    program: "Calistung",      guru_id: 2, guru_nama: "Ibu Sari Dewi",       status: "Hadir",       verified: true  },
+  { id: 4,  tanggal: "2026-03-03", siswa_id: 6, siswa_nama: "Putri Amalia",  program: "Matematika SD",  guru_id: 2, guru_nama: "Ibu Sari Dewi",       status: "Izin",        verified: true  },
+  // 3 Mar 2026 — diisi Pak Rizky
+  { id: 5,  tanggal: "2026-03-03", siswa_id: 5, siswa_nama: "Rizal Maulana", program: "IPA Terpadu",    guru_id: 3, guru_nama: "Pak Rizky Maulana",   status: "Hadir",       verified: true  },
+
+  // 6 Mar 2026 — diisi Pak Budi
+  { id: 6,  tanggal: "2026-03-06", siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Matematika SMP", guru_id: 1, guru_nama: "Drs. Budi Santoso",  status: "Hadir",       verified: true  },
+  { id: 7,  tanggal: "2026-03-06", siswa_id: 3, siswa_nama: "Budi Wijaya",   program: "Matematika SMA", guru_id: 1, guru_nama: "Drs. Budi Santoso",  status: "Alpha",       verified: true  },
+  // 6 Mar 2026 — diisi Bu Sari
+  { id: 8,  tanggal: "2026-03-06", siswa_id: 2, siswa_nama: "Siti Rahma",    program: "Calistung",      guru_id: 2, guru_nama: "Ibu Sari Dewi",       status: "Hadir",       verified: true  },
+  // Bu Sari ngisi siswa lain (diminta admin offline)
+  { id: 9,  tanggal: "2026-03-06", siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Bahasa Inggris", guru_id: 2, guru_nama: "Ibu Sari Dewi",       status: "Hadir",       verified: true  },
+  // 6 Mar 2026 — diisi Pak Rizky
+  { id: 10, tanggal: "2026-03-06", siswa_id: 5, siswa_nama: "Rizal Maulana", program: "IPA Terpadu",    guru_id: 3, guru_nama: "Pak Rizky Maulana",   status: "Hadir",       verified: true  },
+
+  // 10 Mar 2026 — diisi Pak Budi
+  { id: 11, tanggal: "2026-03-10", siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Matematika SMP", guru_id: 1, guru_nama: "Drs. Budi Santoso",  status: "Sakit",       verified: false },
+  { id: 12, tanggal: "2026-03-10", siswa_id: 3, siswa_nama: "Budi Wijaya",   program: "Matematika SMA", guru_id: 1, guru_nama: "Drs. Budi Santoso",  status: "Hadir",       verified: false },
+  // 10 Mar 2026 — diisi Bu Sari
+  { id: 13, tanggal: "2026-03-10", siswa_id: 2, siswa_nama: "Siti Rahma",    program: "Calistung",      guru_id: 2, guru_nama: "Ibu Sari Dewi",       status: "Hadir",       verified: false },
+  { id: 14, tanggal: "2026-03-10", siswa_id: 6, siswa_nama: "Putri Amalia",  program: "Matematika SD",  guru_id: 2, guru_nama: "Ibu Sari Dewi",       status: "Hadir",       verified: false },
+  // 10 Mar 2026 — diisi Pak Rizky
+  { id: 15, tanggal: "2026-03-10", siswa_id: 5, siswa_nama: "Rizal Maulana", program: "IPA Terpadu",    guru_id: 3, guru_nama: "Pak Rizky Maulana",   status: "Tidak Hadir", verified: false },
+
+  // 13 Mar 2026 — diisi Pak Budi
+  { id: 16, tanggal: "2026-03-13", siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Matematika SMP", guru_id: 1, guru_nama: "Drs. Budi Santoso",  status: "Hadir",       verified: false },
+  { id: 17, tanggal: "2026-03-13", siswa_id: 3, siswa_nama: "Budi Wijaya",   program: "Matematika SMA", guru_id: 1, guru_nama: "Drs. Budi Santoso",  status: "Hadir",       verified: false },
+  // 13 Mar 2026 — diisi Bu Sari
+  { id: 18, tanggal: "2026-03-13", siswa_id: 2, siswa_nama: "Siti Rahma",    program: "Calistung",      guru_id: 2, guru_nama: "Ibu Sari Dewi",       status: "Tidak Hadir", verified: false },
+  { id: 19, tanggal: "2026-03-13", siswa_id: 4, siswa_nama: "Dewi Lestari",  program: "Bahasa Inggris", guru_id: 2, guru_nama: "Ibu Sari Dewi",       status: "Hadir",       verified: false },
+  // 13 Mar 2026 — diisi Pak Rizky
+  { id: 20, tanggal: "2026-03-13", siswa_id: 5, siswa_nama: "Rizal Maulana", program: "IPA Terpadu",    guru_id: 3, guru_nama: "Pak Rizky Maulana",   status: "Hadir",       verified: false },
 ];
 
 // ── Data Artikel ──────────────────────────────────────────────

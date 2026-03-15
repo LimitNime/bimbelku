@@ -14,6 +14,7 @@ const ALL_LABELS = {
   "siswa":          "Data Siswa",
   "guru":           "Data Guru",
   "setting-honor":  "Setting Honor Guru",
+  "rekap-absensi-admin": "Rekap Absensi Siswa",
   "program":        "Program Bimbel",
   "spp":            "SPP Siswa",
   "pemasukan":      "Pemasukan",

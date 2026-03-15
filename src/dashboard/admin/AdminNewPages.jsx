@@ -17,6 +17,7 @@ import {
   KATEGORI_PEMASUKAN,
   KATEGORI_PENGELUARAN,
   BULAN_LIST,
+  ABSENSI_DATA,
   TAHUN_LIST,
 } from "../../data/index.js";
 
@@ -1109,6 +1110,318 @@ export function Tutorial() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// 7. REKAP ABSENSI ADMIN
+// Admin lihat semua absensi dari semua guru
+// Verifikasi per baris, filter per guru/bulan/tahun
+// ─────────────────────────────────────────────────────────────
+
+export function RekapAbsensiAdmin() {
+  const [absensi,    setAbsensi]    = useState(ABSENSI_DATA);
+  const [bulan,      setBulan]      = useState("Maret");
+  const [tahun,      setTahun]      = useState("2026");
+  const [filterGuru, setFilterGuru] = useState("Semua");
+  const [activeTab,  setActiveTab]  = useState("rekap"); // "rekap" | "detail"
+  const [detailGuru, setDetailGuru] = useState(null);
+
+  // Filter absensi sesuai bulan/tahun/guru
+  const filtered = absensi.filter(a => {
+    const d   = new Date(a.tanggal);
+    const bln = d.toLocaleDateString("id-ID", { month: "long" });
+    const thn = d.getFullYear().toString();
+    const guruOk = filterGuru === "Semua" || a.guru_nama === filterGuru;
+    return bln === bulan && thn === tahun && guruOk;
+  });
+
+  // Verifikasi 1 baris
+  const verifikasi = (id) => {
+    setAbsensi(absensi.map(a => a.id === id ? { ...a, verified: true } : a));
+  };
+
+  // Verifikasi semua yang terfilter
+  const verifikasiSemua = () => {
+    const ids = new Set(filtered.map(a => a.id));
+    setAbsensi(absensi.map(a => ids.has(a.id) ? { ...a, verified: true } : a));
+  };
+
+  // Batal verifikasi
+  const batalVerifikasi = (id) => {
+    setAbsensi(absensi.map(a => a.id === id ? { ...a, verified: false } : a));
+  };
+
+  // Summary per guru
+  const guruList = [...new Set(filtered.map(a => a.guru_nama))];
+
+  const summaryPerGuru = guruList.map(nama => {
+    const rows     = filtered.filter(a => a.guru_nama === nama);
+    const hadir    = rows.filter(a => a.status === "Hadir").length;
+    const izin     = rows.filter(a => a.status === "Izin").length;
+    const sakit    = rows.filter(a => a.status === "Sakit").length;
+    const alpha    = rows.filter(a => a.status === "Alpha").length;
+    const verified = rows.filter(a => a.verified).length;
+
+    // Unique siswa yang diajar
+    const siswaSet = {};
+    rows.forEach(r => {
+      if (!siswaSet[r.siswa_id]) siswaSet[r.siswa_id] = { nama: r.siswa_nama, programs: new Set() };
+      siswaSet[r.siswa_id].programs.add(r.program);
+    });
+    const siswaList = Object.values(siswaSet);
+
+    // Unique tanggal (pertemuan)
+    const pertemuan = [...new Set(rows.map(r => r.tanggal))].length;
+
+    return { nama, rows, hadir, izin, sakit, alpha, verified, siswaList, pertemuan };
+  });
+
+  const handleExport = () => {
+    exportCSV(`absensi-${bulan}-${tahun}.csv`,
+      ["Tanggal", "Nama Siswa", "Program", "Status", "Guru Pengisi", "Verified"],
+      filtered.map(a => [a.tanggal, a.siswa_nama, a.program, a.status, a.guru_nama, a.verified ? "Ya" : "Belum"])
+    );
+  };
+
+  const STATUS_COLORS = {
+    "Hadir":       { bg: "#dcfce7", color: "#16a34a" },
+    "Izin":        { bg: "#dbeafe", color: "#2563eb" },
+    "Sakit":       { bg: "#fef9c3", color: "#b45309" },
+    "Alpha":       { bg: "#fee2e2", color: "#dc2626" },
+    "Tidak Hadir": { bg: "#fee2e2", color: "#dc2626" },
+  };
+
+  return (
+    <div className="fade-in">
+
+      {/* ── Filter ──────────────────────────────────────────── */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label">Bulan</label>
+            <select className="form-input" style={{ width: 150 }} value={bulan} onChange={e => setBulan(e.target.value)}>
+              {BULAN_LIST.map(b => <option key={b}>{b}</option>)}
+            </select>
+          </div>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label">Tahun</label>
+            <select className="form-input" style={{ width: 100 }} value={tahun} onChange={e => setTahun(e.target.value)}>
+              {TAHUN_LIST.map(t => <option key={t}>{t}</option>)}
+            </select>
+          </div>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label">Guru</label>
+            <select className="form-input" style={{ width: 200 }} value={filterGuru} onChange={e => setFilterGuru(e.target.value)}>
+              <option>Semua</option>
+              {TEACHERS_DATA.map(g => <option key={g.id}>{g.nama}</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={verifikasiSemua} className="btn-primary"
+            style={{ padding: "9px 14px", fontSize: ".82rem", background: "linear-gradient(135deg,#16a34a,#22c55e)" }}>
+            ✓ Verifikasi Semua
+          </button>
+          <button className="btn-outline" style={{ padding: "9px 14px", fontSize: ".82rem" }} onClick={handleExport}>
+            📥 Export
+          </button>
+        </div>
+      </div>
+
+      {/* ── Tab ─────────────────────────────────────────────── */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 20 }}>
+        {[
+          { key: "rekap",  label: "📊 Rekap per Guru" },
+          { key: "detail", label: "📋 Detail Harian"  },
+        ].map(tab => (
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+            style={{
+              padding: "8px 18px", borderRadius: 10, border: "none",
+              cursor: "pointer", fontFamily: "inherit", fontSize: ".85rem",
+              fontWeight: 600, transition: ".15s",
+              background: activeTab === tab.key ? "var(--blue)" : "#f1f5f9",
+              color: activeTab === tab.key ? "#fff" : "var(--muted)",
+            }}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── TAB 1: Rekap per Guru ───────────────────────────── */}
+      {activeTab === "rekap" && (
+        <div>
+          {summaryPerGuru.length === 0 ? (
+            <div className="content-card" style={{ textAlign: "center", padding: 48 }}>
+              <div style={{ fontSize: "2.5rem", marginBottom: 12 }}>📭</div>
+              <p style={{ color: "var(--muted)" }}>Belum ada data absensi {bulan} {tahun}.</p>
+            </div>
+          ) : summaryPerGuru.map((g, gi) => (
+            <div key={gi} style={{
+              background: "#fff", borderRadius: 16, border: "1px solid var(--border)",
+              marginBottom: 20, overflow: "hidden",
+            }}>
+              {/* Header guru */}
+              <div style={{
+                padding: "16px 20px", background: "#f8fafc",
+                borderBottom: "1px solid var(--border)",
+                display: "flex", justifyContent: "space-between",
+                alignItems: "center", flexWrap: "wrap", gap: 10,
+              }}>
+                <div>
+                  <h3 style={{ fontSize: ".95rem", fontWeight: 700, margin: 0 }}>{g.nama}</h3>
+                  <span style={{ fontSize: ".75rem", color: "var(--muted)" }}>
+                    {bulan} {tahun} · {g.pertemuan} pertemuan · {g.siswaList.length} siswa
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {[
+                    { label: "Hadir", val: g.hadir, color: "#16a34a", bg: "#dcfce7" },
+                    { label: "Izin",  val: g.izin,  color: "#2563eb", bg: "#dbeafe" },
+                    { label: "Sakit", val: g.sakit, color: "#b45309", bg: "#fef9c3" },
+                    { label: "Alpha", val: g.alpha, color: "#dc2626", bg: "#fee2e2" },
+                  ].map((s, i) => (
+                    <span key={i} style={{
+                      padding: "3px 10px", borderRadius: 100, fontSize: ".72rem",
+                      fontWeight: 700, background: s.bg, color: s.color,
+                    }}>
+                      {s.label}: {s.val}
+                    </span>
+                  ))}
+                  <span style={{
+                    padding: "3px 10px", borderRadius: 100, fontSize: ".72rem",
+                    fontWeight: 700,
+                    background: g.verified === g.rows.length ? "#dcfce7" : "#fef9c3",
+                    color: g.verified === g.rows.length ? "#16a34a" : "#b45309",
+                  }}>
+                    ✓ {g.verified}/{g.rows.length} verified
+                  </span>
+                </div>
+              </div>
+
+              {/* Tabel siswa per guru */}
+              <div style={{ overflowX: "auto" }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Nama Siswa</th>
+                      <th>Program</th>
+                      <th>Hadir</th>
+                      <th>Izin</th>
+                      <th>Sakit</th>
+                      <th>Alpha</th>
+                      <th>Total Pertemuan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {g.siswaList.map((s, si) => {
+                      const siswaRows    = g.rows.filter(r => r.siswa_nama === s.nama);
+                      const sHadir = siswaRows.filter(r => r.status === "Hadir").length;
+                      const sIzin  = siswaRows.filter(r => r.status === "Izin").length;
+                      const sSakit = siswaRows.filter(r => r.status === "Sakit").length;
+                      const sAlpha = siswaRows.filter(r => r.status === "Alpha").length;
+                      return (
+                        <tr key={si}>
+                          <td><strong>{s.nama}</strong></td>
+                          <td>
+                            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                              {[...s.programs].map((p, pi) => (
+                                <span key={pi} className="badge blue" style={{ fontSize: ".7rem" }}>{p}</span>
+                              ))}
+                            </div>
+                          </td>
+                          <td style={{ color: "#16a34a", fontWeight: 600 }}>{sHadir}</td>
+                          <td style={{ color: "#2563eb", fontWeight: 600 }}>{sIzin}</td>
+                          <td style={{ color: "#b45309", fontWeight: 600 }}>{sSakit}</td>
+                          <td style={{ color: "#dc2626", fontWeight: 600 }}>{sAlpha}</td>
+                          <td><span className="badge blue">{siswaRows.length}x</span></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── TAB 2: Detail Harian ────────────────────────────── */}
+      {activeTab === "detail" && (
+        <div className="table-card">
+          <div className="table-head">
+            <h3>Detail Absensi Harian — {bulan} {tahun}</h3>
+            <span style={{ fontSize: ".78rem", color: "var(--muted)" }}>
+              {filtered.filter(a => a.verified).length}/{filtered.length} terverifikasi
+            </span>
+          </div>
+          {filtered.length === 0 ? (
+            <div style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>
+              Belum ada data absensi.
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Tanggal</th>
+                    <th>Nama Siswa</th>
+                    <th>Program</th>
+                    <th>Status</th>
+                    <th>Guru Pengisi</th>
+                    <th>Verifikasi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map(a => (
+                    <tr key={a.id}>
+                      <td style={{ fontSize: ".8rem", color: "var(--muted)" }}>
+                        {new Date(a.tanggal).toLocaleDateString("id-ID", {
+                          weekday: "short", day: "numeric", month: "short",
+                        })}
+                      </td>
+                      <td><strong>{a.siswa_nama}</strong></td>
+                      <td><span className="badge blue">{a.program}</span></td>
+                      <td>
+                        <span style={{
+                          padding: "3px 10px", borderRadius: 100, fontSize: ".72rem",
+                          fontWeight: 700,
+                          background: (STATUS_COLORS[a.status] || STATUS_COLORS["Alpha"]).bg,
+                          color: (STATUS_COLORS[a.status] || STATUS_COLORS["Alpha"]).color,
+                        }}>
+                          {a.status}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: ".82rem" }}>{a.guru_nama}</td>
+                      <td>
+                        {a.verified ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ color: "#16a34a", fontSize: ".78rem", fontWeight: 700 }}>✓ Verified</span>
+                            <button onClick={() => batalVerifikasi(a.id)} style={{
+                              padding: "2px 8px", borderRadius: 6, border: "none",
+                              background: "#fee2e2", color: "#dc2626", cursor: "pointer",
+                              fontSize: ".68rem", fontWeight: 700, fontFamily: "inherit",
+                            }}>Batal</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => verifikasi(a.id)} style={{
+                            padding: "4px 12px", borderRadius: 7, border: "none",
+                            background: "#dcfce7", color: "#16a34a", cursor: "pointer",
+                            fontSize: ".75rem", fontWeight: 700, fontFamily: "inherit",
+                          }}>
+                            ✓ Verifikasi
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
