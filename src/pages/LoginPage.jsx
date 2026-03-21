@@ -1,21 +1,30 @@
 // ============================================================
-// LoginPage.jsx — Authentication page
+// LoginPage.jsx — Authentication page (Supabase)
 // ============================================================
 import { useState } from "react";
-import { DEMO_ACCOUNTS } from "../data";
 
-export default function LoginPage({ onLogin, onBack }) {
-  const [email, setEmail]   = useState("");
-  const [pass,  setPass]    = useState("");
-  const [error, setError]   = useState("");
+export default function LoginPage({ onLogin, onNav, loginError }) {
+  const [email,   setEmail]   = useState("");
+  const [pass,    setPass]    = useState("");
+  const [error,   setError]   = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    const acc = DEMO_ACCOUNTS.find(a => a.email === email && a.pass === pass);
-    if (acc) { setError(""); onLogin(acc); }
-    else setError("Email atau password salah. Gunakan akun demo di bawah.");
+  const [showPass, setShowPass] = useState(false);
+
+  const handleLogin = async () => {
+    if (!email || !pass) { setError("Email dan password wajib diisi."); return; }
+    setLoading(true);
+    setError("");
+    try {
+      await onLogin(email, pass);
+    } catch (err) {
+      setError(err.message || "Email atau password salah.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const fillDemo = (acc) => { setEmail(acc.email); setPass(acc.pass); setError(""); };
+  const displayError = error || loginError;
 
   return (
     <div style={{
@@ -33,55 +42,61 @@ export default function LoginPage({ onLogin, onBack }) {
             fontFamily: "'Sora',sans-serif", fontSize: "1.4rem", fontWeight: 800,
             background: "linear-gradient(135deg,var(--blue),var(--green-light))",
             WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-          }}>🎓 BimbelKu</span>
+          }}><i className="fa-solid fa-graduation-cap" style={{marginRight: 8}}></i> Al-Adzkiya</span>
         </div>
 
         <h2 style={{ textAlign: "center", fontSize: "1.4rem", fontWeight: 800, marginBottom: 6 }}>
-          Selamat Datang Kembali 👋
+          Selamat Datang Kembali <i className="fa-solid fa-hand-sparkles" style={{ color: "#f59e0b" }}></i>
         </h2>
         <p style={{ textAlign: "center", color: "var(--muted)", fontSize: ".88rem", marginBottom: 28 }}>
-          Masuk ke akun BimbelKu kamu
+          Masuk ke akun Al-Adzkiya kamu
         </p>
-
-        {/* Demo accounts */}
-        <div style={{ background: "#f8fafc", borderRadius: 12, padding: 14, marginBottom: 20 }}>
-          <h4 style={{ fontSize: ".78rem", fontWeight: 700, color: "var(--muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: ".5px" }}>
-            Akun Demo
-          </h4>
-          {DEMO_ACCOUNTS.map((a) => (
-            <div key={a.role} style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "6px 0", borderBottom: "1px solid var(--border)",
-            }}>
-              <span style={{ fontSize: ".78rem", fontWeight: 700, padding: "2px 8px", borderRadius: 5, background: a.color + "22", color: a.color }}>{a.role}</span>
-              <span style={{ fontSize: ".75rem", color: "var(--muted)", fontFamily: "monospace" }}>{a.email}</span>
-              <span onClick={() => fillDemo(a)} style={{ fontSize: ".72rem", color: "var(--blue)", cursor: "pointer", fontWeight: 600 }}>Gunakan</span>
-            </div>
-          ))}
-        </div>
 
         {/* Form */}
         <div className="form-group">
           <label className="form-label">Email</label>
           <input className="form-input" type="email" placeholder="email@contoh.com"
-            value={email} onChange={e => setEmail(e.target.value)} />
+            value={email} onChange={e => setEmail(e.target.value)}
+            disabled={loading} />
         </div>
-        <div className="form-group">
+        <div className="form-group" style={{ position: "relative" }}>
           <label className="form-label">Password</label>
-          <input className="form-input" type="password" placeholder="••••••••"
-            value={pass} onChange={e => setPass(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleLogin()} />
+          <div style={{ position: "relative" }}>
+            <input className="form-input" type={showPass ? "text" : "password"} placeholder="••••••••"
+              value={pass} onChange={e => setPass(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleLogin()}
+              disabled={loading} style={{ paddingRight: 44 }} />
+            <button 
+              type="button"
+              onClick={() => setShowPass(!showPass)}
+              style={{
+                position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+                background: "none", border: "none", color: "var(--muted)", cursor: "pointer",
+                padding: 4, display: "flex", alignItems: "center", justifyContent: "center",
+                transition: "color .2s"
+              }}
+            >
+              <i className={`fa-solid ${showPass ? 'fa-eye-slash' : 'fa-eye'}`} style={{ fontSize: "1rem" }}></i>
+            </button>
+          </div>
         </div>
 
-        {error && <p style={{ color: "#dc2626", fontSize: ".82rem", marginBottom: 12 }}>{error}</p>}
+        {displayError && (
+          <div style={{
+            background: "#fef2f2", border: "1px solid #fecaca",
+            borderRadius: 10, padding: "10px 14px", marginBottom: 14,
+          }}>
+            <p style={{ color: "#dc2626", fontSize: ".82rem", margin: 0 }}><i className="fa-solid fa-triangle-exclamation" style={{marginRight: 6}}></i> {displayError}</p>
+          </div>
+        )}
 
-        <button className="btn-block" onClick={handleLogin}>Masuk</button>
+        <button className="btn-block" onClick={handleLogin} disabled={loading}
+          style={{ opacity: loading ? 0.7 : 1, cursor: loading ? "not-allowed" : "pointer" }}>
+          {loading ? "Memuat..." : "Masuk"}
+        </button>
 
-        <p style={{ textAlign: "center", marginTop: 16, fontSize: ".82rem", color: "var(--muted)" }}>
-          Belum punya akun?{" "}
-          <span style={{ color: "var(--blue)", cursor: "pointer", fontWeight: 600 }}>Daftar Sekarang</span>
-        </p>
-        <p style={{ textAlign: "center", marginTop: 8, fontSize: ".82rem", color: "var(--muted)", cursor: "pointer" }} onClick={onBack}>
+        <p style={{ textAlign: "center", marginTop: 16, fontSize: ".82rem", color: "var(--muted)", cursor: "pointer" }}
+          onClick={() => onNav("home")}>
           ← Kembali ke Beranda
         </p>
       </div>

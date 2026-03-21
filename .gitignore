@@ -1,3 +1,9 @@
 node_modules
 dist
 .DS_Store
+ 
+# Environment variables — jangan pernah di-commit!
+.env
+.env.local
+.env.production
+.env.*.local

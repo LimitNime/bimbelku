@@ -1,12 +1,11 @@
 // ============================================================
 // exportHelper.js — Utilitas Export Excel & PDF
-// Butuh: npm install jspdf xlsx
+// Butuh: npm install jspdf xlsx-js-style
 // ============================================================
+import * as XLSX from "xlsx-js-style";
 
-// ── EXCEL (SheetJS) ──────────────────────────────────────────
+// ── EXCEL (SheetJS Style) ────────────────────────────────────
 export const exportExcel = (filename, sheets) => {
-  const XLSX = window.XLSX || require("xlsx");
-
   const wb = XLSX.utils.book_new();
 
   sheets.forEach(({ name, headers, rows, colWidths }) => {
@@ -32,23 +31,24 @@ export const exportExcel = (filename, sheets) => {
       };
     }
 
-    // Style semua cell data
-    for (let R = 1; R <= rows.length; R++) {
-      for (let C = headerRange.s.c; C <= headerRange.e.c; C++) {
-        const cellAddr = XLSX.utils.encode_cell({ r: R, c: C });
-        if (!ws[cellAddr]) continue;
-        ws[cellAddr].s = {
-          alignment: { vertical: "center", wrapText: true },
-          fill:      { fgColor: { rgb: R % 2 === 0 ? "F8FAFC" : "FFFFFF" } },
-          border: {
-            top:    { style: "thin", color: { rgb: "E2E8F0" } },
-            bottom: { style: "thin", color: { rgb: "E2E8F0" } },
-            left:   { style: "thin", color: { rgb: "E2E8F0" } },
-            right:  { style: "thin", color: { rgb: "E2E8F0" } },
-          },
-        };
+      // Style semua cell data
+      for (let R = 1; R <= rows.length; R++) {
+        for (let C = headerRange.s.c; C <= headerRange.e.c; C++) {
+          const cellAddr = XLSX.utils.encode_cell({ r: R, c: C });
+          if (!ws[cellAddr]) continue;
+          ws[cellAddr].s = {
+            alignment: { vertical: "center", wrapText: true, horizontal: "left" },
+            fill:      { fgColor: { rgb: R % 2 === 0 ? "F1F5F9" : "FFFFFF" } },
+            border: {
+              top:    { style: "thin", color: { rgb: "94A3B8" } },
+              bottom: { style: "thin", color: { rgb: "94A3B8" } },
+              left:   { style: "thin", color: { rgb: "94A3B8" } },
+              right:  { style: "thin", color: { rgb: "94A3B8" } },
+            },
+            font: { sz: 10 }
+          };
+        }
       }
-    }
 
     // Set lebar kolom
     if (colWidths) {
@@ -72,14 +72,17 @@ export const exportExcel = (filename, sheets) => {
 };
 
 // ── PDF — Slip Gaji Guru ─────────────────────────────────────
-export const cetakSlipGajiPDF = (honor, guru) => {
+// site: objek dari getSiteSettings() — opsional, fallback ke default
+export const cetakSlipGajiPDF = (honor, guru, site = {}) => {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-  const pageW  = 210;
-  const margin = 20;
-  const colW   = pageW - margin * 2;
-  let y        = 20;
+  const pageW      = 210;
+  const margin     = 20;
+  const colW       = pageW - margin * 2;
+  let y            = 20;
+  const namaBimbel = site.nama    || "Al-Adzkiya";
+  const tagline    = site.tagline || "Lembaga Bimbingan Belajar";
 
   const fmt    = (n) => "Rp " + (n || 0).toLocaleString("id-ID");
   const line   = () => { doc.setDrawColor(0); doc.setLineWidth(0.3); doc.line(margin, y, pageW - margin, y); y += 1; };
@@ -92,19 +95,26 @@ export const cetakSlipGajiPDF = (honor, guru) => {
   y += 7;
 
   doc.setFontSize(11);
-  doc.text("BimbelKu", pageW / 2, y, { align: "center" });
+  doc.text(namaBimbel, pageW / 2, y, { align: "center" });
   y += 5;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text("Lembaga Bimbingan Belajar", pageW / 2, y, { align: "center" });
+  doc.text(tagline, pageW / 2, y, { align: "center" });
   y += 8;
 
   thickLine();
 
   // ── Info Guru ─────────────────────────────────────────────
   doc.setFontSize(9);
+  
+  // Format nomor slip: SLIP/GURU/ID/MM/YYYY
+  const guruIdShort = (guru?.id || "G").substring(0, 4).toUpperCase();
+  const mm = (honor.bulan_id || 0).toString().padStart(2, '0');
+  const noSlip = `No: SLIP/${guruIdShort}/${mm}/${honor.tahun}`;
+
   const infoRows = [
+    ["No. Slip",   noSlip],
     ["Nama",       honor.guru_nama],
     ["Periode",    honor.bulan + " " + honor.tahun],
     ["Tanggal",    new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })],
@@ -145,10 +155,17 @@ export const cetakSlipGajiPDF = (honor, guru) => {
     doc.line(margin, y - 1, pageW - margin, y - 1);
   };
 
+  // ── Helper: JSON Parser untuk field Array ───────────────────
+  const parseJson = (val) => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    try { return JSON.parse(val); } catch { return []; }
+  };
+
   // ── Bagian 1: Honor Mengajar ──────────────────────────────
   sectionHeader("1. HONOR MENGAJAR");
 
-  const mengajar = honor.mengajar || [];
+  const mengajar = parseJson(honor.mengajar);
   let subtotalMengajar = 0;
 
   mengajar.forEach(m => {
@@ -167,7 +184,7 @@ export const cetakSlipGajiPDF = (honor, guru) => {
   y += 8;
 
   // ── Bagian 2: Komponen Tetap ──────────────────────────────
-  const komponen = honor.komponen_tetap || [];
+  const komponen = parseJson(honor.komponen_tetap);
   if (komponen.length > 0) {
     y += 3;
     sectionHeader("2. KOMPONEN TETAP");
@@ -186,7 +203,7 @@ export const cetakSlipGajiPDF = (honor, guru) => {
   }
 
   // ── Bagian 3: Honor Tambahan ──────────────────────────────
-  const tambahan = honor.honor_tambahan || [];
+  const tambahan = parseJson(honor.honor_tambahan);
   if (tambahan.length > 0) {
     y += 3;
     sectionHeader("3. HONOR TAMBAHAN");
@@ -235,7 +252,7 @@ export const cetakSlipGajiPDF = (honor, guru) => {
   doc.text("Mengetahui,", col1, y);
   doc.text("Penerima,", col2, y);
   y += 5;
-  doc.text("Kepala BimbelKu", col1, y);
+  doc.text(`Kepala ${namaBimbel}`, col1, y);
   doc.text(honor.guru_nama, col2, y);
   y += 20;
 
@@ -249,13 +266,14 @@ export const cetakSlipGajiPDF = (honor, guru) => {
   y += 15;
   doc.setFontSize(8);
   doc.setTextColor(120, 120, 120);
-  doc.text("Dokumen ini dicetak secara otomatis oleh sistem BimbelKu", pageW / 2, y, { align: "center" });
+  doc.text(`Dokumen ini dicetak secara otomatis oleh sistem ${namaBimbel}`, pageW / 2, y, { align: "center" });
 
   doc.save(`slip-gaji-${honor.guru_nama.replace(/ /g, "-")}-${honor.bulan}-${honor.tahun}.pdf`);
 };
 
 // ── PDF — Kwitansi SPP ───────────────────────────────────────
-export const cetakKwitansiPDF = (spp, siswa) => {
+// site: objek dari getSiteSettings() — opsional, fallback ke default
+export const cetakKwitansiPDF = (spp, siswa, site = {}) => {
   const { jsPDF } = window.jspdf;
   // Ukuran kwitansi: A5 landscape
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a5" });
@@ -265,7 +283,13 @@ export const cetakKwitansiPDF = (spp, siswa) => {
   const margin = 15;
   let y        = 15;
 
-  const fmt = (n) => "Rp " + (n || 0).toLocaleString("id-ID");
+  const fmt         = (n) => "Rp " + (n || 0).toLocaleString("id-ID");
+  const namaBimbel  = site.nama    || "Al-Adzkiya";
+  const tagline     = site.tagline || "Lembaga Bimbingan Belajar";
+  const prefix      = site.kwitansi_prefix || "KWT";
+  // Nomor kwitansi: PREFIX-8KARAKTER_UUID-BLN-THN
+  const shortId     = (spp.siswa_id || spp.id || "").toString().replace(/-/g,"").substring(0, 8).toUpperCase();
+  const noKwitansi  = `${prefix}-${shortId}-${spp.bulan?.substring(0,3)?.toUpperCase()}-${spp.tahun}`;
 
   // Border luar
   doc.setDrawColor(0);
@@ -279,12 +303,12 @@ export const cetakKwitansiPDF = (spp, siswa) => {
   y += 8;
 
   doc.setFontSize(11);
-  doc.text("BimbelKu", pageW / 2, y, { align: "center" });
+  doc.text(namaBimbel, pageW / 2, y, { align: "center" });
   y += 5;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
-  doc.text("Lembaga Bimbingan Belajar", pageW / 2, y, { align: "center" });
+  doc.text(tagline, pageW / 2, y, { align: "center" });
   y += 6;
 
   doc.setLineWidth(0.8);
@@ -294,7 +318,7 @@ export const cetakKwitansiPDF = (spp, siswa) => {
   // ── No Kwitansi ───────────────────────────────────────────
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.text(`No: KWT-${spp.siswa_id}-${spp.bulan?.substring(0,3)?.toUpperCase()}-${spp.tahun}`, pageW - margin, y, { align: "right" });
+  doc.text(`No: ${noKwitansi}`, pageW - margin, y, { align: "right" });
   doc.text(`Tanggal: ${spp.tgl_bayar}`, margin, y);
   y += 8;
 
@@ -347,7 +371,7 @@ export const cetakKwitansiPDF = (spp, siswa) => {
   const ttdX = pageW - margin - 45;
   doc.text("Hormat kami,", ttdX, y, { align: "center" });
   y += 3;
-  doc.text("BimbelKu", ttdX, y, { align: "center" });
+  doc.text(namaBimbel, ttdX, y, { align: "center" });
   y += 16;
   doc.setLineWidth(0.3);
   doc.line(ttdX - 20, y, ttdX + 20, y);
@@ -360,4 +384,187 @@ export const cetakKwitansiPDF = (spp, siswa) => {
   doc.text("Simpan kwitansi ini sebagai bukti pembayaran yang sah", pageW / 2, pageH - 8, { align: "center" });
 
   doc.save(`kwitansi-spp-${spp.siswa_nama}-${spp.bulan}-${spp.tahun}.pdf`);
+};
+
+// ── PDF — Raport Siswa ──────────────────────────────────────
+// rows: array { mapel, guru_nama, nilai, keterangan }
+export const cetakRaportPDF = (siswa, program, bulan, tahun, rows, site = {}) => {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+  const pageW      = 210;
+  const margin     = 20;
+  const colW       = pageW - margin * 2;
+  let y            = 18;
+  const namaBimbel = site.nama    || "Al-Adzkiya";
+  const tagline    = site.tagline || "Lembaga Bimbingan Belajar";
+
+  const line       = () => { doc.setDrawColor(220); doc.setLineWidth(0.2); doc.line(margin, y, pageW - margin, y); y += 1; };
+  const thickLine  = () => { doc.setDrawColor(0);   doc.setLineWidth(0.6); doc.line(margin, y, pageW - margin, y); y += 2; };
+
+  // ── Header ────────────────────────────────────────────────
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(15);
+  doc.text("RAPORT SISWA", pageW / 2, y, { align: "center" }); y += 7;
+
+  doc.setFontSize(11);
+  doc.text(namaBimbel, pageW / 2, y, { align: "center" }); y += 5;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text(tagline, pageW / 2, y, { align: "center" }); y += 8;
+  thickLine();
+
+  // ── Info Siswa ────────────────────────────────────────────
+  const infoRows = [
+    ["Nama Siswa", siswa.nama || "-"],
+    ["Program",    program    || "-"],
+    ["Periode",    `${bulan} ${tahun}`],
+    ["Sekolah",   siswa.sekolah || "-"],
+  ];
+  doc.setFontSize(9);
+  infoRows.forEach(([label, val]) => {
+    doc.setFont("helvetica", "bold");
+    doc.text(label, margin, y);
+    doc.setFont("helvetica", "normal");
+    doc.text(":", margin + 32, y);
+    doc.text(String(val), margin + 36, y);
+    y += 6;
+  });
+  y += 2; thickLine();
+
+  // ── Tabel Nilai ───────────────────────────────────────────
+  const colMapel = margin;
+  const colGuru  = margin + 60;
+  const colNilai = margin + 120;
+  const colKet   = margin + 140;
+
+  // Header tabel
+  doc.setFillColor(37, 99, 235);
+  doc.rect(margin, y, colW, 8, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text("Mata Pelajaran", colMapel + 2, y + 5.5);
+  doc.text("Guru",          colGuru  + 2, y + 5.5);
+  doc.text("Nilai",         colNilai + 2, y + 5.5);
+  doc.text("Keterangan",    colKet   + 2, y + 5.5);
+  doc.setTextColor(0, 0, 0);
+  y += 10;
+
+  // Baris nilai
+  rows.forEach((r, i) => {
+    if (i % 2 === 0) {
+      doc.setFillColor(248, 250, 252);
+      doc.rect(margin, y - 2, colW, 8, "F");
+    }
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(String(r.mapel || "-"),      colMapel + 2, y + 4);
+    doc.text(String(r.guru_nama || "-"),  colGuru  + 2, y + 4);
+
+    const nilaiStr = r.nilai !== null && r.nilai !== undefined ? String(r.nilai) : "-";
+    const nilaiNum = parseFloat(nilaiStr);
+    if (!isNaN(nilaiNum)) {
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(nilaiNum >= 75 ? 22 : 185, nilaiNum >= 75 ? 163 : 28, nilaiNum >= 75 ? 74 : 26);
+    }
+    doc.text(nilaiStr, colNilai + 2, y + 4);
+    doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "normal");
+    doc.text(String(r.keterangan || "-").substring(0, 25), colKet + 2, y + 4);
+
+    doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.1);
+    doc.line(margin, y + 6, pageW - margin, y + 6);
+    y += 8;
+  });
+
+  // Rata-rata
+  const validNilai = rows.filter(r => r.nilai !== null && r.nilai !== undefined && !isNaN(parseFloat(r.nilai)));
+  if (validNilai.length > 0) {
+    const rata = validNilai.reduce((a, b) => a + parseFloat(b.nilai), 0) / validNilai.length;
+    y += 2; thickLine();
+    doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+    doc.text("Rata-rata Nilai", margin, y);
+    doc.setTextColor(37, 99, 235);
+    doc.text(rata.toFixed(1), pageW - margin, y, { align: "right" });
+    doc.setTextColor(0, 0, 0);
+    y += 8;
+  }
+
+  y += 4; thickLine();
+
+  // ── Tanda Tangan ─────────────────────────────────────────
+  const col1 = margin;
+  const col2 = pageW / 2 + 10;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+  doc.text("Mengetahui,", col1, y);
+  doc.text("Orang Tua / Wali,", col2, y); y += 5;
+  doc.text(`Kepala ${namaBimbel}`, col1, y);
+  doc.text(siswa.nama || "", col2, y); y += 20;
+  doc.setLineWidth(0.3);
+  doc.line(col1, y, col1 + 50, y);
+  doc.line(col2, y, col2 + 50, y); y += 4;
+  doc.setFontSize(8);
+  doc.text("(................................)", col1, y);
+  doc.text("(................................)", col2, y);
+
+  // ── Footer ────────────────────────────────────────────────
+  y += 14;
+  doc.setFontSize(7); doc.setTextColor(150, 150, 150);
+  doc.text(`Dicetak otomatis oleh sistem ${namaBimbel} | ${new Date().toLocaleDateString("id-ID")}`, pageW / 2, y, { align: "center" });
+
+  doc.save(`raport-${(siswa.nama || "siswa").replace(/ /g, "-")}-${program}-${bulan}-${tahun}.pdf`);
+};
+
+// ── PDF — Laporan Keuangan ───────────────────────────────────
+export const cetakLaporanKeuangan = (bulan, tahun, data, site = {}) => {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+  const pageW      = 210;
+  const margin     = 20;
+  let y            = 20;
+  const namaBimbel = site.nama    || "Al-Adzkiya";
+
+  const fmt = (n) => "Rp " + (n || 0).toLocaleString("id-ID");
+
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text("LAPORAN KEUANGAN BULANAN", pageW / 2, y, { align: "center" });
+  y += 10;
+
+  doc.setFontSize(11);
+  doc.text(`${namaBimbel} - Periode ${bulan} ${tahun}`, pageW / 2, y, { align: "center" });
+  y += 15;
+
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, pageW - margin, y);
+  y += 10;
+
+  const rows = [
+    ["Pemasukan SPP", fmt(data.spp)],
+    ["Pemasukan Lain", fmt(data.masuk)],
+    ["TOTAL PEMASUKAN", fmt(data.totalMasuk), true],
+    ["", ""],
+    ["Pengeluaran Operasional", fmt(data.keluar)],
+    ["Pengeluaran Honor Guru", fmt(data.honor)],
+    ["TOTAL PENGELUARAN", fmt(data.totalKeluar), true],
+    ["", ""],
+    ["SALDO AKHIR", fmt(data.saldo), true]
+  ];
+
+  rows.forEach(([label, val, isBold]) => {
+    if (!label) { y += 6; return; }
+    doc.setFont("helvetica", isBold ? "bold" : "normal");
+    doc.setFontSize(10);
+    doc.text(label, margin, y);
+    doc.text(val, pageW - margin, y, { align: "right" });
+    y += 8;
+  });
+
+  y += 20;
+  doc.setFontSize(8);
+  doc.text(`Dicetak pada: ${new Date().toLocaleString("id-ID")}`, margin, y);
+  
+  doc.save(`laporan-keuangan-${bulan}-${tahun}.pdf`);
 };

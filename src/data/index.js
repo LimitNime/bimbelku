@@ -1,14 +1,14 @@
 // ============================================================
-// DATA — BimbelKu
+// DATA — Al-Adzkiya
 // Semua data statis / mock data terpusat di sini
 // Nanti diganti dengan query Supabase satu per satu
 // ============================================================
 
 // ── Demo Accounts ────────────────────────────────────────────
 export const DEMO_ACCOUNTS = [
-  { role: "Admin", email: "admin@bimbelku.com", pass: "admin123", color: "#8b5cf6" },
-  { role: "Guru",  email: "guru@bimbelku.com",  pass: "guru123",  color: "#3b82f6" },
-  { role: "Siswa", email: "siswa@bimbelku.com", pass: "siswa123", color: "#22c55e" },
+  { role: "Admin", email: "admin@al-adzkiya.com", pass: "admin123", color: "#8b5cf6" },
+  { role: "Guru",  email: "guru@al-adzkiya.com",  pass: "guru123",  color: "#3b82f6" },
+  { role: "Siswa", email: "siswa@al-adzkiya.com", pass: "siswa123", color: "#22c55e" },
 ];
 
 // ── Program Bimbel ────────────────────────────────────────────
@@ -43,7 +43,7 @@ export const TEACHERS_DATA = [
     nama:    "Drs. Budi Santoso",
     ttl:     "Bandung, 15 Februari 1980",
     alamat:  "Jl. Merdeka No. 10, Bandung",
-    email:   "budi.s@bimbelku.com",
+    email:   "budi.s@al-adzkiya.com",
     kontak:  "08711111111",
     status:  "Aktif",
   },
@@ -52,7 +52,7 @@ export const TEACHERS_DATA = [
     nama:    "Ibu Sari Dewi",
     ttl:     "Jakarta, 3 Maret 1985",
     alamat:  "Jl. Kenanga No. 5, Jakarta Selatan",
-    email:   "sari.d@bimbelku.com",
+    email:   "sari.d@al-adzkiya.com",
     kontak:  "08722222222",
     status:  "Aktif",
   },
@@ -61,7 +61,7 @@ export const TEACHERS_DATA = [
     nama:    "Pak Rizky Maulana",
     ttl:     "Surabaya, 21 Juli 1990",
     alamat:  "Jl. Anggrek No. 3, Surabaya",
-    email:   "rizky.m@bimbelku.com",
+    email:   "rizky.m@al-adzkiya.com",
     kontak:  "08733333333",
     status:  "Aktif",
   },
@@ -168,7 +168,14 @@ export const STUDENTS_DATA = [
 
 // ── Data SPP per Siswa ────────────────────────────────────────
 // Tiap baris = 1 program 1 siswa 1 bulan
-// Siswa multi program = banyak baris per bulan
+// expired_spp = tanggal expired per siswa (admin yang input)
+export const SPP_EXPIRED = [
+  { siswa_id: 1, siswa_nama: "Andi Pratama",  expired: "2026-04-10" },
+  { siswa_id: 2, siswa_nama: "Siti Rahma",    expired: "2026-03-20" },
+  { siswa_id: 3, siswa_nama: "Budi Wijaya",   expired: "2026-04-01" },
+  { siswa_id: 5, siswa_nama: "Rizal Maulana", expired: "2026-03-25" },
+];
+
 export const SPP_DATA = [
   // Andi Pratama — Matematika SMP
   { id: 1,  siswa_id: 1, siswa_nama: "Andi Pratama", program: "Matematika SMP", bulan: "Januari",  tahun: "2026", nominal: 200000, status: "Lunas",       tgl_bayar: "3 Jan 2026"  },
@@ -324,46 +331,45 @@ export const HONOR_DATA = [
 ];
 
 // ── Data Absensi Siswa ────────────────────────────────────────
-// Tiap baris = 1 siswa + 1 hari + guru yang ngisi
-// Guru bisa ngisi siswa siapa saja (bukan hanya siswa dia)
-// verified = admin sudah verifikasi atau belum
+// sesi_id = ID unik per kali submit absensi
+// 1 submit = 1 pertemuan, berapa pun siswa yang hadir
+// Kalau 1 hari guru submit 2x (sesi beda) = 2 pertemuan
 export const ABSENSI_DATA = [
-  // 3 Mar 2026 — diisi Pak Budi
-  { id: 1,  tanggal: "2026-03-03", siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Matematika SMP", guru_id: 1, guru_nama: "Drs. Budi Santoso",  status: "Hadir",       verified: true  },
-  { id: 2,  tanggal: "2026-03-03", siswa_id: 3, siswa_nama: "Budi Wijaya",   program: "Matematika SMA", guru_id: 1, guru_nama: "Drs. Budi Santoso",  status: "Hadir",       verified: true  },
-  // 3 Mar 2026 — diisi Bu Sari
-  { id: 3,  tanggal: "2026-03-03", siswa_id: 2, siswa_nama: "Siti Rahma",    program: "Calistung",      guru_id: 2, guru_nama: "Ibu Sari Dewi",       status: "Hadir",       verified: true  },
-  { id: 4,  tanggal: "2026-03-03", siswa_id: 6, siswa_nama: "Putri Amalia",  program: "Matematika SD",  guru_id: 2, guru_nama: "Ibu Sari Dewi",       status: "Izin",        verified: true  },
-  // 3 Mar 2026 — diisi Pak Rizky
-  { id: 5,  tanggal: "2026-03-03", siswa_id: 5, siswa_nama: "Rizal Maulana", program: "IPA Terpadu",    guru_id: 3, guru_nama: "Pak Rizky Maulana",   status: "Hadir",       verified: true  },
+  // 3 Mar 2026 — Pak Budi submit 1x (Andi + Budi = 1 pertemuan)
+  { id: 1,  sesi_id: 1001, tanggal: "2026-03-03", siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Matematika SMP", guru_id: 1, guru_nama: "Drs. Budi Santoso", status: "Hadir", verified: true  },
+  { id: 2,  sesi_id: 1001, tanggal: "2026-03-03", siswa_id: 3, siswa_nama: "Budi Wijaya",   program: "Matematika SMA", guru_id: 1, guru_nama: "Drs. Budi Santoso", status: "Hadir", verified: true  },
+  // 3 Mar 2026 — Bu Sari submit 1x (Siti + Putri = 1 pertemuan)
+  { id: 3,  sesi_id: 1002, tanggal: "2026-03-03", siswa_id: 2, siswa_nama: "Siti Rahma",    program: "Calistung",      guru_id: 2, guru_nama: "Ibu Sari Dewi",      status: "Hadir", verified: true  },
+  { id: 4,  sesi_id: 1002, tanggal: "2026-03-03", siswa_id: 6, siswa_nama: "Putri Amalia",  program: "Matematika SD",  guru_id: 2, guru_nama: "Ibu Sari Dewi",      status: "Hadir", verified: true  },
+  // 3 Mar 2026 — Pak Rizky submit 1x
+  { id: 5,  sesi_id: 1003, tanggal: "2026-03-03", siswa_id: 5, siswa_nama: "Rizal Maulana", program: "IPA Terpadu",    guru_id: 3, guru_nama: "Pak Rizky Maulana",  status: "Hadir", verified: true  },
 
-  // 6 Mar 2026 — diisi Pak Budi
-  { id: 6,  tanggal: "2026-03-06", siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Matematika SMP", guru_id: 1, guru_nama: "Drs. Budi Santoso",  status: "Hadir",       verified: true  },
-  { id: 7,  tanggal: "2026-03-06", siswa_id: 3, siswa_nama: "Budi Wijaya",   program: "Matematika SMA", guru_id: 1, guru_nama: "Drs. Budi Santoso",  status: "Alpha",       verified: true  },
-  // 6 Mar 2026 — diisi Bu Sari
-  { id: 8,  tanggal: "2026-03-06", siswa_id: 2, siswa_nama: "Siti Rahma",    program: "Calistung",      guru_id: 2, guru_nama: "Ibu Sari Dewi",       status: "Hadir",       verified: true  },
-  // Bu Sari ngisi siswa lain (diminta admin offline)
-  { id: 9,  tanggal: "2026-03-06", siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Bahasa Inggris", guru_id: 2, guru_nama: "Ibu Sari Dewi",       status: "Hadir",       verified: true  },
-  // 6 Mar 2026 — diisi Pak Rizky
-  { id: 10, tanggal: "2026-03-06", siswa_id: 5, siswa_nama: "Rizal Maulana", program: "IPA Terpadu",    guru_id: 3, guru_nama: "Pak Rizky Maulana",   status: "Hadir",       verified: true  },
+  // 6 Mar 2026 — Pak Budi submit 1x (Andi + Budi = 1 pertemuan)
+  { id: 6,  sesi_id: 1004, tanggal: "2026-03-06", siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Matematika SMP", guru_id: 1, guru_nama: "Drs. Budi Santoso", status: "Hadir", verified: true  },
+  { id: 7,  sesi_id: 1004, tanggal: "2026-03-06", siswa_id: 3, siswa_nama: "Budi Wijaya",   program: "Matematika SMA", guru_id: 1, guru_nama: "Drs. Budi Santoso", status: "Hadir", verified: true  },
+  // 6 Mar 2026 — Bu Sari submit 1x
+  { id: 8,  sesi_id: 1005, tanggal: "2026-03-06", siswa_id: 2, siswa_nama: "Siti Rahma",    program: "Calistung",      guru_id: 2, guru_nama: "Ibu Sari Dewi",      status: "Hadir", verified: true  },
+  { id: 9,  sesi_id: 1005, tanggal: "2026-03-06", siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Bahasa Inggris", guru_id: 2, guru_nama: "Ibu Sari Dewi",      status: "Hadir", verified: true  },
+  // 6 Mar 2026 — Pak Budi submit lagi (sesi ke-2 di hari yang sama = pertemuan baru)
+  { id: 10, sesi_id: 1006, tanggal: "2026-03-06", siswa_id: 5, siswa_nama: "Rizal Maulana", program: "IPA Terpadu",    guru_id: 1, guru_nama: "Drs. Budi Santoso", status: "Hadir", verified: true  },
 
-  // 10 Mar 2026 — diisi Pak Budi
-  { id: 11, tanggal: "2026-03-10", siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Matematika SMP", guru_id: 1, guru_nama: "Drs. Budi Santoso",  status: "Sakit",       verified: false },
-  { id: 12, tanggal: "2026-03-10", siswa_id: 3, siswa_nama: "Budi Wijaya",   program: "Matematika SMA", guru_id: 1, guru_nama: "Drs. Budi Santoso",  status: "Hadir",       verified: false },
-  // 10 Mar 2026 — diisi Bu Sari
-  { id: 13, tanggal: "2026-03-10", siswa_id: 2, siswa_nama: "Siti Rahma",    program: "Calistung",      guru_id: 2, guru_nama: "Ibu Sari Dewi",       status: "Hadir",       verified: false },
-  { id: 14, tanggal: "2026-03-10", siswa_id: 6, siswa_nama: "Putri Amalia",  program: "Matematika SD",  guru_id: 2, guru_nama: "Ibu Sari Dewi",       status: "Hadir",       verified: false },
-  // 10 Mar 2026 — diisi Pak Rizky
-  { id: 15, tanggal: "2026-03-10", siswa_id: 5, siswa_nama: "Rizal Maulana", program: "IPA Terpadu",    guru_id: 3, guru_nama: "Pak Rizky Maulana",   status: "Tidak Hadir", verified: false },
+  // 10 Mar 2026 — Pak Budi submit 1x
+  { id: 11, sesi_id: 1007, tanggal: "2026-03-10", siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Matematika SMP", guru_id: 1, guru_nama: "Drs. Budi Santoso", status: "Hadir", verified: false },
+  { id: 12, sesi_id: 1007, tanggal: "2026-03-10", siswa_id: 3, siswa_nama: "Budi Wijaya",   program: "Matematika SMA", guru_id: 1, guru_nama: "Drs. Budi Santoso", status: "Hadir", verified: false },
+  // 10 Mar 2026 — Bu Sari submit 1x
+  { id: 13, sesi_id: 1008, tanggal: "2026-03-10", siswa_id: 2, siswa_nama: "Siti Rahma",    program: "Calistung",      guru_id: 2, guru_nama: "Ibu Sari Dewi",      status: "Hadir", verified: false },
+  { id: 14, sesi_id: 1008, tanggal: "2026-03-10", siswa_id: 6, siswa_nama: "Putri Amalia",  program: "Matematika SD",  guru_id: 2, guru_nama: "Ibu Sari Dewi",      status: "Hadir", verified: false },
+  // 10 Mar 2026 — Pak Rizky submit 1x
+  { id: 15, sesi_id: 1009, tanggal: "2026-03-10", siswa_id: 5, siswa_nama: "Rizal Maulana", program: "IPA Terpadu",    guru_id: 3, guru_nama: "Pak Rizky Maulana",  status: "Hadir", verified: false },
 
-  // 13 Mar 2026 — diisi Pak Budi
-  { id: 16, tanggal: "2026-03-13", siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Matematika SMP", guru_id: 1, guru_nama: "Drs. Budi Santoso",  status: "Hadir",       verified: false },
-  { id: 17, tanggal: "2026-03-13", siswa_id: 3, siswa_nama: "Budi Wijaya",   program: "Matematika SMA", guru_id: 1, guru_nama: "Drs. Budi Santoso",  status: "Hadir",       verified: false },
-  // 13 Mar 2026 — diisi Bu Sari
-  { id: 18, tanggal: "2026-03-13", siswa_id: 2, siswa_nama: "Siti Rahma",    program: "Calistung",      guru_id: 2, guru_nama: "Ibu Sari Dewi",       status: "Tidak Hadir", verified: false },
-  { id: 19, tanggal: "2026-03-13", siswa_id: 4, siswa_nama: "Dewi Lestari",  program: "Bahasa Inggris", guru_id: 2, guru_nama: "Ibu Sari Dewi",       status: "Hadir",       verified: false },
-  // 13 Mar 2026 — diisi Pak Rizky
-  { id: 20, tanggal: "2026-03-13", siswa_id: 5, siswa_nama: "Rizal Maulana", program: "IPA Terpadu",    guru_id: 3, guru_nama: "Pak Rizky Maulana",   status: "Hadir",       verified: false },
+  // 13 Mar 2026 — Pak Budi submit 1x
+  { id: 16, sesi_id: 1010, tanggal: "2026-03-13", siswa_id: 1, siswa_nama: "Andi Pratama",  program: "Matematika SMP", guru_id: 1, guru_nama: "Drs. Budi Santoso", status: "Hadir", verified: false },
+  { id: 17, sesi_id: 1010, tanggal: "2026-03-13", siswa_id: 3, siswa_nama: "Budi Wijaya",   program: "Matematika SMA", guru_id: 1, guru_nama: "Drs. Budi Santoso", status: "Hadir", verified: false },
+  // 13 Mar 2026 — Bu Sari submit 1x
+  { id: 18, sesi_id: 1011, tanggal: "2026-03-13", siswa_id: 2, siswa_nama: "Siti Rahma",    program: "Calistung",      guru_id: 2, guru_nama: "Ibu Sari Dewi",      status: "Hadir", verified: false },
+  { id: 19, sesi_id: 1011, tanggal: "2026-03-13", siswa_id: 4, siswa_nama: "Dewi Lestari",  program: "Bahasa Inggris", guru_id: 2, guru_nama: "Ibu Sari Dewi",      status: "Hadir", verified: false },
+  // 13 Mar 2026 — Pak Rizky submit 1x
+  { id: 20, sesi_id: 1012, tanggal: "2026-03-13", siswa_id: 5, siswa_nama: "Rizal Maulana", program: "IPA Terpadu",    guru_id: 3, guru_nama: "Pak Rizky Maulana",  status: "Hadir", verified: false },
 ];
 
 // ── Data Artikel ──────────────────────────────────────────────
@@ -371,7 +377,7 @@ export const ARTICLES = [
   {
     id:       1,
     title:    "5 Teknik Belajar Efektif untuk Persiapan UN",
-    author:   "Admin BimbelKu",
+    author:   "Admin Al-Adzkiya",
     date:     "10 Mar 2026",
     category: "Tips Belajar",
     img:      "📚",
@@ -391,7 +397,7 @@ export const ARTICLES = [
   {
     id:       2,
     title:    "Pengumuman: Try Out Nasional Maret 2026",
-    author:   "Admin BimbelKu",
+    author:   "Admin Al-Adzkiya",
     date:     "8 Mar 2026",
     category: "Pengumuman",
     img:      "📢",
@@ -400,7 +406,7 @@ export const ARTICLES = [
 
 Tanggal : 20–21 Maret 2026
 Waktu   : 08.00 – 12.00 WIB
-Format  : Online via platform BimbelKu
+Format  : Online via platform Al-Adzkiya
 
 Materi yang diujikan:
 - Matematika
@@ -454,7 +460,7 @@ export const BULAN_LIST = [
   "September","Oktober", "November", "Desember",
 ];
 
-export const TAHUN_LIST = ["2024", "2025", "2026"];
+export const TAHUN_LIST = Array.from({ length: 15 }, (_, i) => String(new Date().getFullYear() + i));
 
 // ── Komponen Tetap Honor per Guru ─────────────────────────────
 // Setting komponen tetap per guru (admin setting sekali)
